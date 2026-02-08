@@ -1,6 +1,6 @@
 # Claude Code Configuration
 
-An opinionated [Claude Code](https://docs.anthropic.com/en/docs/claude-code) setup optimised for **deep reasoning**, **maximum output length**, and **minimal interruption**. Extended thinking is always on, output tokens are maxed at 64k, agent teams run in parallel across tmux panes, and every response is auto-committed and pushed — no manual version control.
+An opinionated [Claude Code](https://docs.anthropic.com/en/docs/claude-code) setup optimised for **deep reasoning**, **maximum output length**, and **minimal interruption**. Extended thinking is always on, output tokens are set to 64k, agent teams run in parallel across tmux panes, and every response is auto-committed and pushed — no manual version control.
 
 ## What This Optimises For
 
@@ -93,7 +93,7 @@ dotfiles-claude/
 
 | Variable | Value | Effect |
 |---|---|---|
-| `CLAUDE_CODE_MAX_OUTPUT_TOKENS` | `64000` | Double the default (32k). The 200k context window is shared between input and output — 64k output leaves 136k for input (files, tool results, conversation history). Increase to `128000` for extreme output needs, but this halves input context to 72k and triggers frequent auto-compaction. |
+| `CLAUDE_CODE_MAX_OUTPUT_TOKENS` | `64000` | Double the default (32k). Increase to `128000` if responses are still truncating, at the cost of more frequent auto-compaction. |
 | `CLAUDE_AUTOCOMPACT_PCT_OVERRIDE` | `80` | Auto-compacts at 80% context usage (default 90%). Larger buffer before context limits. |
 | `CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS` | `1` | Enables parallel agent teams. Ask Claude to "use a team" for multi-file tasks. |
 | `MCP_TIMEOUT` | `30000` | 30s MCP server connection timeout (up from default 10s). |
