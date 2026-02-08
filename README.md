@@ -1,6 +1,6 @@
 # Claude Code Configuration
 
-An opinionated [Claude Code](https://docs.anthropic.com/en/docs/claude-code) setup optimised for **deep reasoning**, **maximum output length**, and **minimal interruption**. Extended thinking is always on, output tokens are maxed at 64k, agent teams run in parallel across tmux panes, and every response is auto-committed and pushed — no manual version control.
+An opinionated [Claude Code](https://docs.anthropic.com/en/docs/claude-code) setup optimised for **deep reasoning**, **maximum output length**, and **minimal interruption**. Extended thinking is always on, output tokens are maxed at 128k, agent teams run in parallel across tmux panes, and every response is auto-committed and pushed — no manual version control.
 
 ## What This Optimises For
 
