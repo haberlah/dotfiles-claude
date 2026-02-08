@@ -28,7 +28,7 @@ git remote add upstream https://github.com/haberlah/dotfiles-claude.git
 ~/dotfiles-claude/setup.sh
 ```
 
-### Or clone directly
+### Or clone directly (if you don't plan to track upstream updates)
 
 ```bash
 git clone https://github.com/haberlah/dotfiles-claude.git ~/dotfiles-claude
@@ -55,7 +55,7 @@ Changes take effect on the next `claude` session.
 
 ```sh
 if [ -d "$HOME/dotfiles-claude/.git" ] && [[ ! -f /tmp/.dotfiles-claude-pulled-$(date +%Y%m%d) ]]; then
-  (cd "$HOME/dotfiles-claude" && git pull --ff-only origin main &>/dev/null &)
+  (cd "$HOME/dotfiles-claude" && git pull --ff-only upstream main 2>/dev/null || git pull --ff-only origin main &>/dev/null &)
   touch /tmp/.dotfiles-claude-pulled-$(date +%Y%m%d)
 fi
 ```
@@ -158,24 +158,32 @@ This means installing a skill, tweaking a setting, or adding a hook is automatic
 
 ### Plugin skills ([AltimateAI/data-engineering-skills](https://github.com/AltimateAI/data-engineering-skills))
 
-Installed via `claude plugin`, not stored in this repo:
+Installed via `claude plugin`, not stored in this repo. Run after setup:
 
-```bash
-claude plugin marketplace add AltimateAI/data-engineering-skills
-claude plugin install dbt-skills@data-engineering-skills
-claude plugin install snowflake-skills@data-engineering-skills
-```
+1. Add the marketplace:
+   ```bash
+   claude plugin marketplace add AltimateAI/data-engineering-skills
+   ```
+2. Install both skill packs:
+   ```bash
+   claude plugin install dbt-skills@data-engineering-skills
+   claude plugin install snowflake-skills@data-engineering-skills
+   ```
+
+Skills are available immediately in your next Claude Code session.
 
 | Plugin | Skills |
 |---|---|
 | `dbt-skills` | creating-dbt-models, debugging-dbt-errors, testing-dbt-models, documenting-dbt-models, migrating-sql-to-dbt, refactoring-dbt-models |
 | `snowflake-skills` | finding-expensive-queries, optimizing-query-by-id, optimizing-query-text |
 
+All skills are automatically available in Claude Code sessions. To invoke a skill, use `/<skill-name>` (e.g., `/pdf`, `/xlsx`). To remove a local skill, delete its directory from `skills/`. Plugin skills are managed via `claude plugin list` / `claude plugin uninstall`.
+
 ## Customising After Forking
 
 | File | What to change |
 |---|---|
-| `CLAUDE.md` | Language preference, workflow conventions, remove Replit references |
+| `CLAUDE.md` | Language preference, workflow conventions |
 | `settings.local.json` | Your MCP server permissions, Bash permission level (gitignored — edit locally) |
 | `settings.json` | Token limits, auto-commit behaviour, MCP timeouts |
 | `skills/` | Remove skills you don't use, add your own |
@@ -185,8 +193,9 @@ Shared settings (`settings.json`, `CLAUDE.md`, hooks, skills) sync via git. Mach
 ## Prerequisites
 
 - [Claude Code](https://docs.anthropic.com/en/docs/claude-code): `npm install -g @anthropic-ai/claude-code`
-- Git and [GitHub CLI](https://cli.github.com/) (`gh`)
-- tmux: `brew install tmux` (macOS) or `apt install tmux` (Linux)
+- Anthropic API key or Max subscription (Claude Code prompts on first run)
+- Git and [GitHub CLI](https://cli.github.com/) (`gh auth login` — needed for auto-push)
+- tmux: `brew install tmux` (macOS) or `apt install tmux` (Linux) — used by agent teams for split-pane visibility
 - Node.js 18+
 
 Tested on macOS. Should work on Linux with no changes.

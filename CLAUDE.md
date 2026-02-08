@@ -29,9 +29,9 @@ Use agent teams for tasks that benefit from parallel work:
 
 Changes are automatically committed and pushed to GitHub by a Stop hook after each response. Do NOT ask about version control — it is handled automatically.
 
-After pushing, relay the Replit pull command from the hook output so I can sync my Replit deployment.
-
 ## Data Science Projects
+
+These are default preferences for new projects — override in project-level CLAUDE.md files as needed.
 
 When working in projects with notebooks, SQL, or data pipelines:
 - Check for a project-level CLAUDE.md with schema documentation first

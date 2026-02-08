@@ -1,7 +1,7 @@
 #!/bin/bash
 # Auto-commit and push all changes when Claude finishes responding.
 # Handles both the current project and the global dotfiles-claude config repo.
-# Outputs the Replit pull command via stderr so Claude relays it to the user.
+# Outputs the pull command via stderr so Claude relays it to the user.
 
 auto_commit_push() {
   local dir="$1"
@@ -38,7 +38,7 @@ auto_commit_push() {
   # Push to remote
   if git remote get-url origin &>/dev/null; then
     if git push origin "$BRANCH" &>/dev/null; then
-      echo "${label}: committed and pushed to ${BRANCH}. Run in Replit: git pull origin ${BRANCH}" >&2
+      echo "${label}: committed and pushed to ${BRANCH}. Run: git pull origin ${BRANCH}" >&2
     else
       echo "${label}: committed locally but push failed. Run: git push origin ${BRANCH}" >&2
     fi
