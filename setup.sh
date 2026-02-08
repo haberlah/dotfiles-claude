@@ -32,4 +32,10 @@ for item in "${ITEMS[@]}"; do
   echo "  Linked $target -> $source"
 done
 
+# Install pre-commit hook to prevent accidental secret leaks
+GIT_HOOKS_DIR="$REPO_DIR/.git/hooks"
+mkdir -p "$GIT_HOOKS_DIR"
+ln -sf "$REPO_DIR/hooks/pre-commit-secrets-check.sh" "$GIT_HOOKS_DIR/pre-commit"
+echo "  Installed pre-commit secrets check hook"
+
 echo "Done! Claude Code config is now synced."
