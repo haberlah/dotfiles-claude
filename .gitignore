@@ -1,1 +1,4 @@
 .DS_Store
+**/data/browser_state/
+**/auth_info.json
+**/library.json
