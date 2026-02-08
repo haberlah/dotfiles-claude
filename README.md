@@ -11,6 +11,7 @@ An opinionated [Claude Code](https://docs.anthropic.com/en/docs/claude-code) set
 | **Long sessions** | Auto-compaction at 80% context prevents abrupt context loss |
 | **Parallel work** | Agent teams with tmux split panes for real-time visibility |
 | **Zero friction** | Auto-commit + push on every response, broad tool permissions |
+| **Data science** | dbt + Snowflake skills via plugin, SQL/notebook conventions in CLAUDE.md |
 | **Safety** | Pre-commit hook blocks secrets, deny rules protect sensitive files |
 
 ## Quick Start
@@ -71,7 +72,7 @@ dotfiles-claude/
 ├── hooks/
 │   ├── auto-commit-push.sh         # Stop hook: auto-commit + push
 │   └── pre-commit-secrets-check.sh # Git hook: blocks secrets from commits
-├── skills/                         # 16 productivity skills
+├── skills/                         # 13 local skills (+ 9 via plugin)
 ├── setup.sh                        # One-command installer
 └── LICENSE                         # MIT
 ```
@@ -135,15 +136,14 @@ This means installing a skill, tweaking a setting, or adding a hook is automatic
 
 ## Skills
 
-16 skills included:
+13 local skills + 9 via plugin (22 total):
+
+### Local skills (in `skills/`)
 
 | Skill | Purpose |
 |---|---|
 | `article-extractor` | Extract clean content from URLs |
 | `docx` | Create/edit Word documents with tracked changes |
-| `file-organizer` | Organise files, find duplicates |
-| `image-enhancer` | Improve screenshot quality |
-| `lead-research-assistant` | Business lead research |
 | `pdf` | Extract, merge, split, fill PDF forms |
 | `playwright` | Browser automation and testing |
 | `pptx` | Create/edit presentations |
@@ -155,6 +155,21 @@ This means installing a skill, tweaking a setting, or adding a hook is automatic
 | `web-design-guidelines` | UI review against best practices |
 | `webapp-testing` | Test local web apps with Playwright |
 | `xlsx` | Create/analyse spreadsheets |
+
+### Plugin skills ([AltimateAI/data-engineering-skills](https://github.com/AltimateAI/data-engineering-skills))
+
+Installed via `claude plugin`, not stored in this repo:
+
+```bash
+claude plugin marketplace add AltimateAI/data-engineering-skills
+claude plugin install dbt-skills@data-engineering-skills
+claude plugin install snowflake-skills@data-engineering-skills
+```
+
+| Plugin | Skills |
+|---|---|
+| `dbt-skills` | creating-dbt-models, debugging-dbt-errors, testing-dbt-models, documenting-dbt-models, migrating-sql-to-dbt, refactoring-dbt-models |
+| `snowflake-skills` | finding-expensive-queries, optimizing-query-by-id, optimizing-query-text |
 
 ## Customising After Forking
 

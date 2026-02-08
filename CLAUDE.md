@@ -30,3 +30,18 @@ Use agent teams for tasks that benefit from parallel work:
 Changes are automatically committed and pushed to GitHub by a Stop hook after each response. Do NOT ask about version control — it is handled automatically.
 
 After pushing, relay the Replit pull command from the hook output so I can sync my Replit deployment.
+
+## Data Science Projects
+
+When working in projects with notebooks, SQL, or data pipelines:
+- Check for a project-level CLAUDE.md with schema documentation first
+- Use MCP database tools to inspect schemas before writing SQL — never guess column names
+- For exploratory work, use Plan Mode (Shift+Tab) before writing queries
+- Prefer marimo notebooks (.py) over Jupyter (.ipynb) for new projects — they're plain Python, git-friendly, and reproducible
+- When writing .ipynb: generate the ENTIRE notebook in one shot, don't build cell-by-cell
+- Separate data processing from visualisation into different files
+- Keep reusable logic in `src/` modules that notebooks import
+- Prefer polars over pandas for new projects (lazy evaluation, better performance)
+- Use DuckDB for local analytical queries on parquet/CSV files
+- Use CTEs in SQL, never nested subqueries. Qualify all column names with table aliases.
+- Run `pytest -q --maxfail=1` after creating data transformation code

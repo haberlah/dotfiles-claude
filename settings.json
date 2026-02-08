@@ -1,8 +1,5 @@
 {
   "$schema": "https://json.schemastore.org/claude-code-settings.json",
-  "alwaysThinkingEnabled": true,
-  "showTurnDuration": true,
-  "teammateMode": "tmux",
   "env": {
     "CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS": "1",
     "CLAUDE_CODE_MAX_OUTPUT_TOKENS": "64000",
@@ -22,5 +19,12 @@
         ]
       }
     ]
-  }
+  },
+  "enabledPlugins": {
+    "dbt-skills@data-engineering-skills": true,
+    "snowflake-skills@data-engineering-skills": true
+  },
+  "alwaysThinkingEnabled": true,
+  "showTurnDuration": true,
+  "teammateMode": "tmux"
 }
