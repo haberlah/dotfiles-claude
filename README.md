@@ -74,15 +74,17 @@ This runs silently in the background on your first terminal open each day. The `
 
 ```
 dotfiles-claude/
-├── CLAUDE.md               # Global instructions (applied to every session)
-├── settings.json           # Core settings, env vars, hooks
-├── settings.local.json     # Tool permissions
+├── CLAUDE.md                       # Global instructions (applied to every session)
+├── settings.json                   # Core settings, env vars, hooks
+├── settings.local.example.json     # Template for machine-specific permissions
 ├── hooks/
-│   ├── auto-commit-push.sh           # Stop hook: auto-commit + push
-│   └── pre-commit-secrets-check.sh   # Git hook: blocks secrets from commits
-├── skills/                 # 17 installed skills
-└── setup.sh                # Symlink installer for new machines
+│   ├── auto-commit-push.sh         # Stop hook: auto-commit + push
+│   └── pre-commit-secrets-check.sh # Git hook: blocks secrets from commits
+├── skills/                         # 17 installed skills
+└── setup.sh                        # Symlink installer for new machines
 ```
+
+> **Note:** `settings.local.json` is gitignored — it stays on your machine and is never pushed. The repo includes `settings.local.example.json` as a starting template. The setup script copies it automatically on first run.
 
 ## Settings Explained
 
@@ -104,16 +106,18 @@ dotfiles-claude/
 | `MCP_TIMEOUT` | `30000` | 30-second timeout for MCP server connections (up from default). Prevents false timeouts when MCP servers are slow to start. |
 | `MCP_TOOL_TIMEOUT` | `60000` | 60-second timeout for individual MCP tool calls. Some tools (file uploads, browser automation, large searches) need more time than the default allows. |
 
-### Permissions (`settings.local.json`)
+### Permissions (`settings.local.example.json`)
 
-Follows a principle of **broad allow, targeted guardrails**:
+This file is a **template** — the setup script copies it to `settings.local.json` on first run, and the local copy is gitignored so your machine-specific permissions never reach GitHub.
+
+The template follows a principle of **broad allow, targeted guardrails**:
 
 - **Auto-allowed:** All file operations (`Read`, `Edit`, `Write`, `Glob`, `Grep`), all web access (`WebSearch`, `WebFetch`), all Bash commands, Playwright browser automation, and Brave Search
 - **Require confirmation:** Only destructive operations — `rm -rf *`, `git push --force`, `git reset --hard`, `sudo rm`
 
 This eliminates permission prompts during normal work while catching genuinely dangerous commands. If you prefer tighter control, remove `Bash(*)` from the allow list and Claude will ask before running shell commands.
 
-**Adding your own MCP tools:** If you use additional MCP servers (e.g., database tools, Slack, custom APIs), add their permissions to the `allow` array. The naming pattern is `mcp__SERVER_NAME__tool_name`.
+**Adding your own MCP tools:** Edit your local `settings.local.json` (not the template) and add permissions to the `allow` array. The naming pattern is `mcp__SERVER_NAME__tool_name`.
 
 ## Auto-Commit Workflow
 
@@ -188,7 +192,8 @@ After forking, these are the files you'll want to personalise:
 | File | What to change |
 |---|---|
 | `CLAUDE.md` | Replace language preference, remove Replit references, add your own workflow conventions |
-| `settings.local.json` | Add permissions for your MCP servers, adjust Bash permission level |
+| `settings.local.json` | Already gitignored — edit your local copy to add MCP server permissions and adjust Bash permission level |
+| `settings.local.example.json` | Update the template if you want to share your permission patterns with others |
 | `skills/` | Remove skills you don't use, add your own |
 | `settings.json` | Adjust token limits, disable auto-commit hook if you prefer manual control |
 
