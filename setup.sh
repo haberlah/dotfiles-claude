@@ -57,6 +57,9 @@ fi
 ln -s "$LOCAL_SETTINGS" "$LOCAL_SETTINGS_CLAUDE"
 echo "  Linked $LOCAL_SETTINGS_CLAUDE -> $LOCAL_SETTINGS"
 
+# Ensure hook scripts are executable (some systems strip execute bits on clone)
+chmod +x "$REPO_DIR/hooks/"*.sh
+
 # Install pre-commit hook to prevent accidental secret leaks
 GIT_HOOKS_DIR="$REPO_DIR/.git/hooks"
 mkdir -p "$GIT_HOOKS_DIR"

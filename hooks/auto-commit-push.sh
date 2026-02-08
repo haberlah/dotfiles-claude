@@ -30,9 +30,9 @@ auto_commit_push() {
   # Commit — skip hooks for project repos, but run them for dotfiles
   # (the dotfiles pre-commit hook scans for secrets before pushing to a public repo)
   if [ "$label" = "Config" ]; then
-    git commit -m "Update: ${CHANGED}" &>/dev/null || return 0
+    git commit -m "auto: ${CHANGED}" &>/dev/null || return 0
   else
-    git commit -m "Update: ${CHANGED}" --no-verify &>/dev/null || return 0
+    git commit -m "auto: ${CHANGED}" --no-verify &>/dev/null || return 0
   fi
 
   # Push to remote

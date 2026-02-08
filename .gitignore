@@ -1,5 +1,37 @@
-.DS_Store
+# Machine-specific settings (permissions, MCP tools)
 settings.local.json
+
+# OS
+.DS_Store
+
+# Skill runtime data (may contain auth state)
 **/data/browser_state/
 **/auth_info.json
 **/library.json
+**/state.json
+
+# Credentials and secrets
+.env*
+credentials.json
+token.json
+keyfile.json
+*.pem
+*.key
+*.p12
+*.pfx
+*.jks
+id_rsa
+id_ed25519
+.npmrc
+.pypirc
+
+# Runtime artifacts
+node_modules/
+__pycache__/
+*.pyc
+*.log
+*.bak
+*.swp
+*.tmp
+*.sqlite
+*.db

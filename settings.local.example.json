@@ -35,11 +35,23 @@
       "mcp__brave-search__brave_web_search",
       "mcp__brave-search__brave_local_search"
     ],
+    "deny": [
+      "Read(**/.env*)",
+      "Read(**/secrets/**)",
+      "Read(**/*.pem)",
+      "Read(**/*.key)",
+      "Read(~/.ssh/**)",
+      "Read(~/.aws/**)"
+    ],
     "ask": [
       "Bash(rm -rf *)",
       "Bash(git push --force *)",
       "Bash(git reset --hard *)",
-      "Bash(sudo rm *)"
+      "Bash(git checkout -- *)",
+      "Bash(git clean *)",
+      "Bash(git branch -D *)",
+      "Bash(sudo rm *)",
+      "Bash(chmod 777 *)"
     ]
   }
 }
