@@ -72,7 +72,8 @@ dotfiles-claude/
 │   ├── auto-commit-push.sh         # Stop hook: auto-commit + push
 │   └── pre-commit-secrets-check.sh # Git hook: blocks secrets from commits
 ├── skills/                         # 16 productivity skills
-└── setup.sh                        # One-command installer
+├── setup.sh                        # One-command installer
+└── LICENSE                         # MIT
 ```
 
 > `settings.local.json` is gitignored — your machine-specific permissions stay local and are never pushed.
@@ -91,7 +92,7 @@ dotfiles-claude/
 
 | Variable | Value | Effect |
 |---|---|---|
-| `CLAUDE_CODE_MAX_OUTPUT_TOKENS` | `128000` | Maximum response length (matches Opus 4.6's 128k output cap). Prevents truncated code generation. **Trade-off:** uses a large share of context for output. Reduce to `64000` or `32000` if context is tight. |
+| `CLAUDE_CODE_MAX_OUTPUT_TOKENS` | `128000` | Maximum response length (Opus 4.6's 128k output cap). Prevents truncated code generation. **Trade-off:** 128k output leaves only 72k of the 200k context window for input. Reduce to `64000` or `32000` if you hit context limits in long sessions. |
 | `CLAUDE_AUTOCOMPACT_PCT_OVERRIDE` | `80` | Auto-compacts at 80% context usage (default 90%). Larger buffer before context limits. |
 | `CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS` | `1` | Enables parallel agent teams. Ask Claude to "use a team" for multi-file tasks. |
 | `MCP_TIMEOUT` | `30000` | 30s MCP server connection timeout (up from default 10s). |
@@ -104,7 +105,7 @@ Three-tier permission model: **deny > ask > allow**.
 | Tier | What it covers |
 |---|---|
 | **deny** | Reading `.env` files, SSH keys, AWS credentials, `.pem`/`.key` files — always blocked |
-| **ask** | Destructive ops: `rm -rf`, `git push --force`, `git reset --hard`, `git branch -D`, `chmod 777` — requires confirmation |
+| **ask** | Destructive ops: `rm -rf`, `sudo rm`, `git push --force`, `git reset --hard`, `git checkout --`, `git clean`, `git branch -D`, `chmod 777` — requires confirmation |
 | **allow** | Everything else: file ops, Bash, web access, Playwright, Brave Search — runs without prompting |
 
 > **Note:** `Bash(*)` auto-allows all shell commands. This is for power users who trust Claude to operate autonomously. For tighter control, remove it from the allow list — Claude will then prompt before each command.
