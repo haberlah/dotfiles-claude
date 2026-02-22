@@ -9,7 +9,6 @@
   },
   "permissions": {
     "deny": [
-      "mcp__perplexity__perplexity_ask",
       "mcp__perplexity__perplexity_research",
       "mcp__perplexity__perplexity_reason"
     ]
