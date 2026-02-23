@@ -25,9 +25,21 @@ Use agent teams for tasks that benefit from parallel work:
 - Multi-file refactors
 - Testing while implementing
 
-## Web search preferences
+## Web search and browsing
 
-Always prefer Perplexity (`perplexity_search` or `perplexity_ask`) for online searches. Use Brave Search as a fallback only if Perplexity fails or is unavailable.
+When searching or retrieving web content, escalate through this chain — never give up after one tool fails:
+
+1. **Perplexity** (`perplexity_search` or `perplexity_ask`) — first choice for all search queries, fact-finding, and quick answers
+2. **Brave Search** — fallback if Perplexity fails or returns no results
+3. **WebFetch** — for simple page retrieval (public pages, no JS rendering needed)
+4. **Playwright** — for local browser automation, JS-rendered pages, or interactive workflows
+5. **Browserbase** — last resort for pages that block local access (login walls, anti-bot, geo-restricted sites). Use `act`, `extract`, `observe`, and `screenshot` tools — the `stagehand_agent` tool requires a Gemini API key and should be avoided
+
+Key rules:
+- Always try multiple tools before reporting failure — escalate through the chain
+- For authenticated/gated sites (LinkedIn, etc.), go to Browserbase early since simpler tools will be blocked
+- When using Browserbase, prefer the `au.linkedin.com` subdomain pattern for public profile views
+- Run search and browser session creation in parallel when you know browsing will be needed
 
 ## Auto-commit workflow
 
