@@ -25,6 +25,10 @@ Use agent teams for tasks that benefit from parallel work:
 - Multi-file refactors
 - Testing while implementing
 
+## Web search preferences
+
+Always prefer Perplexity (`perplexity_search` or `perplexity_ask`) for online searches. Use Brave Search as a fallback only if Perplexity fails or is unavailable.
+
 ## Auto-commit workflow
 
 Changes are automatically committed and pushed to GitHub by a Stop hook after each response. Do NOT ask about version control — it is handled automatically.
