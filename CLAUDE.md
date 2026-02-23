@@ -33,9 +33,11 @@ When searching or retrieving web content, escalate through this chain — never 
 2. **Brave Search** — fallback if Perplexity fails or returns no results
 3. **WebFetch** — for simple page retrieval (public pages, no JS rendering needed)
 4. **Playwright** — for local browser automation, JS-rendered pages, or interactive workflows
+5. **Browserbase** — last resort for pages that block local access (login walls, anti-bot, geo-restricted sites). Use `act`, `extract`, `observe`, and `screenshot` tools only — do not use `stagehand_agent`
+
 Key rules:
 - Always try multiple tools before reporting failure — escalate through the chain
-- For gated sites (LinkedIn, etc.), go to Playwright early since simpler tools will be blocked
+- For gated sites (LinkedIn, etc.), go to Browserbase early since simpler tools will be blocked
 - When scraping LinkedIn, prefer the `au.linkedin.com` subdomain pattern for public profile views
 - Run search and browser automation in parallel when you know browsing will be needed
 
