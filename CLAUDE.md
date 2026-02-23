@@ -27,19 +27,15 @@ Use agent teams for tasks that benefit from parallel work:
 
 ## Web search and browsing
 
-When searching or retrieving web content, escalate through this chain — never give up after one tool fails:
+Escalate through this chain — never give up after one tool fails:
 
-1. **Perplexity** (`perplexity_search` or `perplexity_ask`) — first choice for all search queries, fact-finding, and quick answers
-2. **Brave Search** — fallback if Perplexity fails or returns no results
-3. **WebFetch** — for simple page retrieval (public pages, no JS rendering needed)
-4. **Playwright** — for local browser automation, JS-rendered pages, or interactive workflows
-5. **Browserbase** — last resort for pages that block local access (login walls, anti-bot, geo-restricted sites). Use `act`, `extract`, `observe`, and `screenshot` tools only — do not use `stagehand_agent`
+1. **Perplexity** — first choice for search and quick answers
+2. **Brave Search** — fallback if Perplexity fails
+3. **WebFetch** — simple public page retrieval
+4. **Playwright** — local browser automation, JS-rendered pages
+5. **Browserbase** — fallback for pages that block local access. Do not use `stagehand_agent`
 
-Key rules:
-- Always try multiple tools before reporting failure — escalate through the chain
-- For gated sites (LinkedIn, etc.), go to Browserbase early since simpler tools will be blocked
-- When scraping LinkedIn, prefer the `au.linkedin.com` subdomain pattern for public profile views
-- Run search and browser automation in parallel when you know browsing will be needed
+Always try multiple tools before reporting failure. Run search and browsing in parallel when possible.
 
 ## Auto-commit workflow
 
