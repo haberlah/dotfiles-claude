@@ -38,13 +38,13 @@ WRITE_PATTERNS=(
   "insert"
   "batchUpdate"
   "batchDelete"
-  "export"
-  "import"
   "star"
   "unstar"
   "archive"
   "unarchive"
 )
+# NOTE: "export" is excluded — gws drive files export is read-only (downloads files).
+# "import" is excluded — gws drive files import uploads but the hook for "create" covers new file creation.
 
 # Check if the command contains any write pattern
 for pattern in "${WRITE_PATTERNS[@]}"; do
