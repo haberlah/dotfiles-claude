@@ -5,8 +5,13 @@ Copies .md, .csv, .pdf, .txt (→.md), and referenced .png files.
 Injects YAML frontmatter into .md files using Drive metadata.
 Reorganises into topic-based directory structure.
 
-Usage: python3 populate_kb.py <backup_dir> <kb_dir> [--metadata <drive_metadata.json>]
+Usage: python3 populate_kb.py <backup_dir> <kb_dir> [--metadata <file>] [--mapping <file>]
        python3 populate_kb.py (uses defaults if no args)
+
+The --mapping flag accepts a JSON file with category path rules. If not provided,
+the script uses a built-in default mapping. To create a mapping file for your
+own project, export the PATH_RULES list to JSON:
+  [{"pattern": "regex_pattern", "category": "target/category"}, ...]
 """
 import json
 import os
@@ -33,6 +38,12 @@ META_FILE = SRC / "drive_metadata.json"
 if "--metadata" in sys.argv:
     idx = sys.argv.index("--metadata")
     META_FILE = Path(sys.argv[idx + 1]).resolve()
+
+# Find mapping file (optional — external JSON overrides built-in PATH_RULES)
+MAPPING_FILE = None
+if "--mapping" in sys.argv:
+    idx = sys.argv.index("--mapping")
+    MAPPING_FILE = Path(sys.argv[idx + 1]).resolve()
 
 # Load Drive metadata
 with open(META_FILE) as f:
@@ -71,7 +82,19 @@ def sanitise(name):
     return name
 
 # Path mapping rules: source path pattern → destination category
-PATH_RULES = [
+# NOTE: These rules are project-specific defaults. For a different project,
+# pass --mapping <file.json> with your own rules as:
+# [{"pattern": "regex", "category": "target/path"}, ...]
+#
+# Load external mapping if provided
+if MAPPING_FILE and MAPPING_FILE.exists():
+    with open(MAPPING_FILE) as f:
+        _rules = json.load(f)
+    PATH_RULES = [(r["pattern"], r["category"]) for r in _rules]
+    print(f"Loaded {len(PATH_RULES)} mapping rules from {MAPPING_FILE}")
+else:
+    # Built-in default mapping (BellaAssist project — override with --mapping for other projects)
+    PATH_RULES = [
     # architecture
     (r'my_drive/.*Architecture.*', 'architecture'),
     (r'my_drive/.*Production_Architecture.*', 'architecture'),
@@ -143,7 +166,7 @@ PATH_RULES = [
     (r'Customer/SC_Contacts', 'contacts'),
     # contacts (sensitive)
     (r'SC_and_PM_contact_details/', 'contacts'),
-]
+    ]
 
 def get_category(rel_path):
     """Determine the KB category from a source relative path."""

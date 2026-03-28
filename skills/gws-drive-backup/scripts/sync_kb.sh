@@ -5,8 +5,8 @@
 #        bash sync_kb.sh (uses defaults)
 #
 # Defaults:
-#   backup_dir: ~/Documents/bella_assist/gws_copy
-#   kb_dir:     ~/Documents/bella_assist/gws_copy/bella_kb
+#   backup_dir: ~/gws_backup  (or specify your own)
+#   kb_dir:     ~/gws_backup/kb  (or specify your own)
 #
 # Phases:
 #   0. Export Drive metadata
