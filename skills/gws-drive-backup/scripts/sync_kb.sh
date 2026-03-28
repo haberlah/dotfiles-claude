@@ -24,15 +24,18 @@ SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 BACKUP_DIR="${1:-$HOME/Documents/bella_assist/gws_copy}"
 KB_DIR="${2:-$BACKUP_DIR/bella_kb}"
 FULL_SYNC=false
+SHARED_ONLY=true
 
 for arg in "$@"; do
   [ "$arg" = "--full" ] && FULL_SYNC=true
+  [ "$arg" = "--include-personal" ] && SHARED_ONLY=false
 done
 
 echo "=== KB Sync ==="
 echo "Backup: $BACKUP_DIR"
 echo "KB:     $KB_DIR"
 echo "Mode:   $([ "$FULL_SYNC" = true ] && echo 'full' || echo 'incremental')"
+echo "Scope:  $([ "$SHARED_ONLY" = true ] && echo 'shared drives only' || echo 'shared + personal')"
 echo ""
 
 # --- Phase 0: Export Drive metadata ---
@@ -48,37 +51,22 @@ echo "--- Phase 1: Download from Drive ---"
 # Detect shared drives
 DRIVES=$(gws drive drives list --params '{"pageSize": 50}' 2>/dev/null | jq -r '.drives[] | "\(.id)\t\(.name)"' 2>/dev/null || true)
 
-if [ "$FULL_SYNC" = true ]; then
-  # Full sync: re-download everything
-  echo "Full sync: downloading all files..."
-
-  # Personal drive
+# Personal drive (only if --include-personal flag is set)
+if [ "$SHARED_ONLY" = false ]; then
+  echo "Including personal drive..."
   bash "$SCRIPT_DIR/gws_backup.sh" "$BACKUP_DIR/my_drive" 2>/dev/null || true
-
-  # Shared drives
-  echo "$DRIVES" | while IFS=$'\t' read -r drive_id drive_name; do
-    [ -z "$drive_id" ] && continue
-    safe_name=$(echo "$drive_name" | sed 's/[/:*?"<>|]/_/g; s/ /_/g')
-    echo "Shared drive: $drive_name"
-    bash "$SCRIPT_DIR/gws_backup.sh" "$BACKUP_DIR/shared_drives/$safe_name" --scope shared --drive-id "$drive_id" 2>/dev/null || true
-  done
 else
-  echo "Incremental sync: checking for changes..."
-  # Compare drive_metadata.json modifiedTime against existing KB frontmatter
-  # For MVP: just re-run the backup (git handles the diffing)
-  # The download scripts are idempotent and git only commits actual changes
-
-  # Personal drive
-  bash "$SCRIPT_DIR/gws_backup.sh" "$BACKUP_DIR/my_drive" 2>/dev/null || true
-
-  # Shared drives
-  echo "$DRIVES" | while IFS=$'\t' read -r drive_id drive_name; do
-    [ -z "$drive_id" ] && continue
-    safe_name=$(echo "$drive_name" | sed 's/[/:*?"<>|]/_/g; s/ /_/g')
-    echo "Shared drive: $drive_name"
-    bash "$SCRIPT_DIR/gws_backup.sh" "$BACKUP_DIR/shared_drives/$safe_name" --scope shared --drive-id "$drive_id" 2>/dev/null || true
-  done
+  echo "Skipping personal drive (shared drives only by default)"
+  echo "  Use --include-personal to include personal Drive files"
 fi
+
+# Shared drives (always included — all members have access)
+echo "$DRIVES" | while IFS=$'\t' read -r drive_id drive_name; do
+  [ -z "$drive_id" ] && continue
+  safe_name=$(echo "$drive_name" | sed 's/[/:*?"<>|]/_/g; s/ /_/g')
+  echo "Shared drive: $drive_name"
+  bash "$SCRIPT_DIR/gws_backup.sh" "$BACKUP_DIR/shared_drives/$safe_name" --scope shared --drive-id "$drive_id" 2>/dev/null || true
+done
 echo ""
 
 # --- Phase 2: Convert local files ---
