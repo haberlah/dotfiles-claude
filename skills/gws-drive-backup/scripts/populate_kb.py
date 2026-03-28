@@ -25,10 +25,6 @@ from datetime import datetime
 if len(sys.argv) >= 3:
     SRC = Path(sys.argv[1]).resolve()
     DST = Path(sys.argv[2]).resolve()
-elif len(sys.argv) == 1:
-    # Default paths for BellaAssist (backwards compatible)
-    SRC = Path.home() / "Documents" / "bella_assist" / "gws_copy"
-    DST = SRC / "bella_kb"
 else:
     print("Usage: python3 populate_kb.py <backup_dir> <kb_dir> [--metadata <file>]")
     sys.exit(1)
@@ -73,7 +69,6 @@ def sanitise(name):
     """Sanitise a filename."""
     name = re.sub(r'^\(Make_a_Copy\)_', '', name)
     name = re.sub(r'^\(Make a Copy\) ', '', name)
-    name = name.replace('Baliey', 'Bailey')
     name = re.sub(r'[/:*?"<>|]', '_', name)
     name = name.replace(' ', '_')
     name = name.replace('—', '-')
@@ -93,80 +88,10 @@ if MAPPING_FILE and MAPPING_FILE.exists():
     PATH_RULES = [(r["pattern"], r["category"]) for r in _rules]
     print(f"Loaded {len(PATH_RULES)} mapping rules from {MAPPING_FILE}")
 else:
-    # Built-in default mapping (BellaAssist project — override with --mapping for other projects)
-    PATH_RULES = [
-    # architecture
-    (r'my_drive/.*Architecture.*', 'architecture'),
-    (r'my_drive/.*Production_Architecture.*', 'architecture'),
-    (r'my_drive/.*MVP_Architecture.*', 'architecture'),
-    (r'my_drive/.*Replit_PRD.*', 'architecture'),
-    (r'my_drive/.*Testing_Guide', 'architecture'),
-    (r'my_drive/.*Document_Processing_Gaps', 'architecture'),
-    (r'Tool___Tech/David_Notes/.*Pipeline.*', 'architecture'),
-    (r'Tool___Tech/David_Notes/.*Redaction.*', 'architecture'),
-    # strategy
-    (r'my_drive/.*Blue_Ocean.*', 'strategy'),
-    (r'my_drive/.*CBIM.*', 'strategy'),
-    (r'my_drive/.*Lean_Canvas.*', 'strategy'),
-    (r'my_drive/.*market_research.*', 'strategy'),
-    (r'my_drive/.*CRCP.*', 'strategy'),
-    (r'my_drive/.*Aviato.*', 'strategy'),
-    (r'GTM___Strategy/Key_Assumptions.*', 'strategy'),
-    (r'GTM___Strategy/\(V2\)_BellaAssist_Project_Plan/.*\.csv', 'strategy/project-plan'),
-    (r'GTM___Strategy/BellaAssist.*GTM.*', 'strategy'),
-    # co-design
-    (r'Co-Design_Program/\(Make_a_Copy\).*', 'co-design/templates'),
-    (r'Co-Design_Program/Make_a_Copy.*', 'co-design/templates'),
-    (r'Co-Design_Program/Analyses/', 'co-design/analyses'),
-    (r'Co-Design_Program/.*Briefing.*', 'co-design/briefings'),
-    (r'Co-Design_Program/MVP_Test_Files/Mike_Smith/', 'co-design/mvp-testing/mike_smith'),
-    (r'Co-Design_Program/MVP_Test_Files/Sarah_Mitchell/', 'co-design/mvp-testing/sarah_mitchell'),
-    (r'Co-Design_Program/MVP_Test_Files/Craig.*', 'co-design/mvp-testing'),
-    (r'Co-Design_Program/David_Methodology_Docs/', 'co-design/methodology'),
-    (r'Co-Design_Program/SC_Co-Design_Docs/Amanda/', 'co-design/participants/amanda'),
-    (r'Co-Design_Program/SC_Co-Design_Docs/Bailey/', 'co-design/participants/bailey'),
-    (r'Co-Design_Program/SC_Co-Design_Docs/Casey/', 'co-design/participants/casey'),
-    (r'Co-Design_Program/SC_Co-Design_Docs/Craig/', 'co-design/participants/craig'),
-    (r'Co-Design_Program/SC_Co-Design_Docs/Dionne/', 'co-design/participants/dionne'),
-    (r'Co-Design_Program/SC_Co-Design_Docs/Jane/', 'co-design/participants/jane'),
-    (r'Co-Design_Program/SC_Co-Design_Docs/Kim/', 'co-design/participants/kim'),
-    (r'Co-Design_Program/SC_Co-Design_Docs/Peter.*Kathy.*Rachel/', 'co-design/participants/peter_kathy_rachel'),
-    (r'Co-Design_Program/SC_Co-Design_Docs/Teresa/', 'co-design/participants/teresa'),
-    (r'Co-Design_Program/SC_Co-Design_Docs/13_Mar.*', 'co-design/analyses'),
-    (r'Co-Design_Program/SC_Co-Design_Docs/\(Mike.*Claude.*', 'co-design/templates'),
-    (r'Co-Design_Program/Participant_Docs/.*Tom.*', 'co-design/participants/tom'),
-    (r'Co-Design_Program/Participant_Docs/.*Kylie.*', 'co-design/participants/kylie'),
-    (r'Co-Design_Program/.*Stage_2.*Feature_Validation\.(md|docx)', 'co-design/participants'),
-    (r'Co-Design_Program/.*Stage_1.*Day_In_The_Life\.(md|docx)', 'co-design/participants'),
-    (r'Co-Design_Program/.*Feature_Validation\.(md|docx|pptx)', 'co-design/participants'),
-    (r'Co-Design_Program/', 'co-design'),
-    # comms
-    (r'General___Comms/', 'comms'),
-    (r'General___Comms/Brand_Guide/', 'comms/brand-guide'),
-    # investors
-    (r'Investors/', 'investors'),
-    # marketing
-    (r'Marketing_Comms_Asset_Directory/', 'marketing'),
-    # legal
-    (r'Participant_Consent_Forms/', 'legal'),
-    # ontologies
-    (r'my_drive/NDIS_data_ontology', 'ontologies/ndis_v2.1'),
-    (r'my_drive/iso_27001', 'ontologies/iso_27001'),
-    # test documents
-    (r'Test_Documents_for_Redaction/', 'test-documents'),
-    # external references
-    (r'Helpful_External_Documents/', 'external-references'),
-    # operations
-    (r'General___Meeting_Minutes/', 'operations'),
-    (r'Tool___Tech/Testing_Files/', 'operations/product-testing'),
-    (r'Tool___Tech/BellaAssist_Document.*', 'operations'),
-    # customer
-    (r'Customer/Research_Verbatim', 'customer'),
-    (r'Customer/Consultations', 'customer'),
-    (r'Customer/SC_Contacts', 'contacts'),
-    # contacts (sensitive)
-    (r'SC_and_PM_contact_details/', 'contacts'),
-    ]
+    # No mapping provided — all files go to a flat 'documents' category
+    print("WARNING: No --mapping file provided. All files will be categorised as 'documents'.")
+    print("  Create a mapping file: [{\"pattern\": \"regex\", \"category\": \"target/path\"}, ...]")
+    PATH_RULES = [(r'.*', 'documents')]
 
 def get_category(rel_path):
     """Determine the KB category from a source relative path."""
