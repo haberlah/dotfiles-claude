@@ -1,9 +1,12 @@
 #!/usr/bin/env python3
-"""Populate bella_kb/ from gws_copy/ with AI-readable files only.
+"""Populate a knowledge base from a gws CLI backup with AI-readable files only.
 
 Copies .md, .csv, .pdf, .txt (→.md), and referenced .png files.
 Injects YAML frontmatter into .md files using Drive metadata.
 Reorganises into topic-based directory structure.
+
+Usage: python3 populate_kb.py <backup_dir> <kb_dir> [--metadata <drive_metadata.json>]
+       python3 populate_kb.py (uses defaults if no args)
 """
 import json
 import os
@@ -13,9 +16,23 @@ import sys
 from pathlib import Path
 from datetime import datetime
 
-SRC = Path("/Users/haberlah/Documents/bella_assist/gws_copy")
-DST = Path("/Users/haberlah/Documents/bella_assist/gws_copy/bella_kb")
+# Parse arguments or use defaults
+if len(sys.argv) >= 3:
+    SRC = Path(sys.argv[1]).resolve()
+    DST = Path(sys.argv[2]).resolve()
+elif len(sys.argv) == 1:
+    # Default paths for BellaAssist (backwards compatible)
+    SRC = Path.home() / "Documents" / "bella_assist" / "gws_copy"
+    DST = SRC / "bella_kb"
+else:
+    print("Usage: python3 populate_kb.py <backup_dir> <kb_dir> [--metadata <file>]")
+    sys.exit(1)
+
+# Find metadata file
 META_FILE = SRC / "drive_metadata.json"
+if "--metadata" in sys.argv:
+    idx = sys.argv.index("--metadata")
+    META_FILE = Path(sys.argv[idx + 1]).resolve()
 
 # Load Drive metadata
 with open(META_FILE) as f:
