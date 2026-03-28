@@ -77,7 +77,9 @@ echo ""
 
 # --- Phase 3: Populate KB ---
 echo "--- Phase 3: Populate KB ---"
-python3 "$SCRIPT_DIR/populate_kb.py" "$BACKUP_DIR" "$KB_DIR" --metadata "$BACKUP_DIR/drive_metadata.json"
+MAPPING_ARG=""
+[ -f "$KB_DIR/category_mapping.json" ] && MAPPING_ARG="--mapping $KB_DIR/category_mapping.json"
+python3 "$SCRIPT_DIR/populate_kb.py" "$BACKUP_DIR" "$KB_DIR" $MAPPING_ARG --metadata "$BACKUP_DIR/drive_metadata.json"
 echo ""
 
 # --- Phase 4: Regenerate index ---

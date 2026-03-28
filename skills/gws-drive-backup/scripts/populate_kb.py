@@ -301,7 +301,7 @@ def inject_frontmatter(filepath, meta, category, source_drive):
         modified_by = lmu.get('displayName', '') if isinstance(lmu, dict) else str(lmu)
 
     fm = f"""---
-title: "{title.replace('"', "'")}"
+title: "{title.replace(chr(92), '').replace('"', "'")}"
 source_drive: {source_drive}
 google_doc_id: "{doc_id}"
 google_doc_url: "{doc_url}"
@@ -411,10 +411,7 @@ for src_base in [SRC / "my_drive", SRC / "shared_drives"]:
             dst_path = DST / category / safe_name
             dst_path.parent.mkdir(parents=True, exist_ok=True)
 
-            # Avoid overwriting (handle name collisions)
-            if dst_path.exists():
-                base, extension = os.path.splitext(safe_name)
-                dst_path = DST / category / f"{base}_2{extension}"
+            # On re-sync, overwrite existing files with fresh copy from Drive
 
             shutil.copy2(src_path, dst_path)
             source_drive = get_source_drive(rel_path)
