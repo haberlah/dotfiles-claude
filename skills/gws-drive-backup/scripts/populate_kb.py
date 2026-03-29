@@ -6,7 +6,6 @@ Injects YAML frontmatter into .md files using Drive metadata.
 Reorganises into topic-based directory structure.
 
 Usage: python3 populate_kb.py <backup_dir> <kb_dir> [--metadata <file>] [--mapping <file>]
-       python3 populate_kb.py (uses defaults if no args)
 
 The --mapping flag accepts a JSON file with category path rules. If not provided,
 the script uses a built-in default mapping. To create a mapping file for your
@@ -159,59 +158,41 @@ def get_doc_type(category, filename):
     return 'document'
 
 def get_source_drive(rel_path):
-    """Determine source drive."""
-    p = str(rel_path)
-    if p.startswith('my_drive'):
+    """Derive source drive name from the top-level directory under shared_drives/ or my_drive/."""
+    parts = Path(rel_path).parts
+    if parts[0] == 'my_drive':
         return 'personal'
-    if 'GTM' in p or 'Marketing' in p or 'Comms' in p:
-        return 'gtm'
-    return 'product'
+    if parts[0] == 'shared_drives' and len(parts) >= 2:
+        # Derive a short label from the shared drive directory name:
+        # e.g. "BellaAssist_-_Product" -> "product", "Acme_GTM" -> "acme-gtm"
+        raw = parts[1]
+        # Strip common org-name prefixes separated by " - " or "_-_"
+        raw = re.sub(r'^.*?[_\s]*-[_\s]+', '', raw)
+        return raw.lower().replace('_', '-').strip('-')
+    # Fallback: use the first path component as-is
+    return parts[0].lower().replace('_', '-')
 
 def get_tags(filename, category):
-    """Generate cross-cutting research tags from filename and category."""
+    """Generate cross-cutting tags from filename and category using universal patterns."""
     tags = set()
     fn = filename.lower()
     cat = (category or '').lower()
 
     # Research methodology
-    if 'empathy' in fn: tags.add('empathy-map')
-    if 'persona' in fn or 'comparison' in fn: tags.add('persona')
-    if 'transcript' in fn: tags.add('transcript')
-    if 'summary' in fn or 'executive_summary' in fn: tags.add('summary')
     if 'interview' in fn: tags.add('interview')
-    if 'golden_metrics' in fn or 'quote' in fn: tags.add('quotes')
-    if 'kano' in fn: tags.add('kano-analysis')
-    if 'think_aloud' in fn or 'think-aloud' in fn: tags.add('think-aloud')
-    if 'day_in_the_life' in fn or 'ditl' in fn: tags.add('day-in-life')
-    if 'feature_validation' in fn or 'stage_2' in fn or 'stage2' in fn: tags.add('feature-validation')
-    if 'pain' in fn or 'frequency' in fn: tags.add('pain-analysis')
+    if 'transcript' in fn: tags.add('transcript')
+    if 'summary' in fn: tags.add('summary')
+    if 'analysis' in fn: tags.add('analysis')
 
-    # Content type
-    if 'canvas' in fn or 'lean_canvas' in fn: tags.add('canvas')
+    # Content structure
     if 'briefing' in fn or 'brief' in fn: tags.add('briefing')
-    if any(x in fn for x in ['template', 'make_a_copy', 'protocol']): tags.add('template')
-    if 'analysis' in fn or 'interim' in fn: tags.add('analysis')
-    if 'prd' in fn or 'specification' in fn: tags.add('specification')
-    if 'pipeline' in fn or 'redaction' in fn: tags.add('redaction')
+    if 'specification' in fn or 'spec' in fn: tags.add('specification')
+    if 'canvas' in fn: tags.add('canvas')
+    if 'report' in fn: tags.add('report')
+    if any(x in fn for x in ['template', 'make_a_copy']): tags.add('template')
 
-    # Domain
-    if 'ndis' in fn or 'ndis' in cat: tags.add('ndis')
-    if 'mvp' in fn: tags.add('mvp')
-    if 'iso' in fn or 'iso_27001' in cat: tags.add('compliance')
-    if 'ontology' in fn or 'ontolog' in cat: tags.add('ontology')
-    if 'consent' in fn or 'nda' in fn: tags.add('legal')
-    if 'contact' in fn or 'tracker' in fn: tags.add('contacts')
-
-    # Stakeholder facing
-    if 'investor' in cat: tags.add('investor-facing')
-    if 'website' in fn or 'faq' in fn or 'objection' in fn: tags.add('external-facing')
-    if 'testing_guide' in fn or 'test_doc' in cat: tags.add('synthetic-data')
-
-    # Participant vs SC (support coordinator)
-    if 'participants/' in cat and 'participant' not in fn:
-        tags.add('support-coordinator')
-    elif 'participant' in fn.lower():
-        tags.add('participant')
+    # Status
+    if 'draft' in fn: tags.add('draft')
 
     return sorted(tags) if tags else ['general']
 
