@@ -87,7 +87,7 @@ echo ""
 # --- Phase 4: Regenerate index ---
 echo "--- Phase 4: Regenerate index ---"
 cd "$KB_DIR"
-python3 scripts/build_index.py . 2>/dev/null || echo "WARN: build_index.py not found or failed"
+python3 "$SCRIPT_DIR/build_index.py" . 2>/dev/null || echo "WARN: build_index.py not found or failed"
 echo ""
 
 # --- Phase 5: Create sync PR ---

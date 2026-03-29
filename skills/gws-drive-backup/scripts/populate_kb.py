@@ -164,7 +164,7 @@ def get_source_drive(rel_path):
         return 'personal'
     if parts[0] == 'shared_drives' and len(parts) >= 2:
         # Derive a short label from the shared drive directory name:
-        # e.g. "BellaAssist_-_Product" -> "product", "Acme_GTM" -> "acme-gtm"
+        # e.g. "OrgName_-_Product" -> "product", "Acme_GTM" -> "acme-gtm"
         raw = parts[1]
         # Strip common org-name prefixes separated by " - " or "_-_"
         raw = re.sub(r'^.*?[_\s]*-[_\s]+', '', raw)
