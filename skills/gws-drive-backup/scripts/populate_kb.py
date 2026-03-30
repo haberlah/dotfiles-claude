@@ -40,9 +40,14 @@ if "--mapping" in sys.argv:
     idx = sys.argv.index("--mapping")
     MAPPING_FILE = Path(sys.argv[idx + 1]).resolve()
 
-# Load Drive metadata
-with open(META_FILE) as f:
-    drive_meta = json.load(f)["files"]
+# Load Drive metadata (optional — frontmatter will have empty fields if missing)
+if META_FILE.exists():
+    with open(META_FILE) as f:
+        drive_meta = json.load(f).get("files", [])
+else:
+    print(f"WARNING: Metadata file not found at {META_FILE}. Frontmatter will have empty Drive fields.")
+    print(f"  Run Phase 0 (gws drive files list) first to generate drive_metadata.json")
+    drive_meta = []
 
 # Build name → metadata lookup (fuzzy: strip extensions, normalise)
 def normalise(name):
