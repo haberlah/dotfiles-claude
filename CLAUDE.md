@@ -27,10 +27,32 @@ Use agent teams for tasks that benefit from parallel work:
 
 ## Web search and browsing
 
-Escalate through this chain — never give up after one tool fails:
+### Tool selection — Perplexity
 
-1. **Perplexity** — first choice for search and quick answers
-2. **Brave Search** — fallback if Perplexity fails
+Use the Perplexity MCP tools as the primary search and research engine. Select the right tool:
+
+| Tool | When to use | Speed |
+|------|-------------|-------|
+| **perplexity_reason** | **DEFAULT** for all search/research. Comparisons, analysis, anything needing quality. Always use `search_context_size: "high"`. | ~5s |
+| **perplexity_search** | Companion to reason. Call FIRST to discover URLs/sources, then pass to reason for analysis. Also use standalone for quick URL lookups. | ~2s |
+| **perplexity_ask** | Only when user explicitly asks for a quick, cheap answer. Not the default. | ~3s |
+| **perplexity_research** | ONLY when user explicitly requests "deep research" or "comprehensive investigation". Never use autonomously. Always use `reasoning_effort: "high"` and `strip_thinking: true`. Warn user it takes 90-120s before calling. | 90-120s |
+
+**Default search pattern (use for all web queries unless told otherwise):**
+1. Call `perplexity_search` to discover relevant URLs and sources (~2s)
+2. Call `perplexity_reason` with `search_context_size: "high"` to analyse the topic (~5s)
+3. Synthesise both — use search URLs for citations, reason output for analysis
+
+**Quality settings for perplexity_reason:**
+- Always pass `search_context_size: "high"` for maximum web context
+- Use `strip_thinking: true` when context window is getting full
+- Use `search_recency_filter: "day"` or `"week"` for current events
+- Use `search_domain_filter` to restrict to authoritative sources when appropriate
+
+### Escalation chain — never give up after one tool fails
+
+1. **Perplexity** (reason + search as above) — first choice
+2. **Brave Search** — fallback if Perplexity fails or times out (user will be notified via hook)
 3. **WebFetch** — simple public page retrieval
 4. **Playwright** — local browser automation, JS-rendered pages
 5. **Browserbase** — fallback for pages that block local access. Do not use `stagehand_agent`
