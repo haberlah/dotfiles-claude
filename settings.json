@@ -11,6 +11,17 @@
     "deny": []
   },
   "hooks": {
+    "SessionStart": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash ~/.claude/hooks/check-cli-auth.sh",
+            "timeout": 10
+          }
+        ]
+      }
+    ],
     "PreToolUse": [
       {
         "matcher": "Bash",
@@ -45,7 +56,6 @@
       }
     ]
   },
-  "mcpServers": {},
   "enabledPlugins": {
     "dbt-skills@data-engineering-skills": true,
     "snowflake-skills@data-engineering-skills": true,

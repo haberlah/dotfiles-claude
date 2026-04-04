@@ -32,7 +32,7 @@ auto_commit_push() {
   if [ "$label" = "Config" ]; then
     git commit -m "auto: ${CHANGED}" &>/dev/null || return 0
   else
-    git commit -m "auto: ${CHANGED}" --no-verify &>/dev/null || return 0
+    git commit -m "auto: ${CHANGED}" &>/dev/null || return 0
   fi
 
   # Push to remote
