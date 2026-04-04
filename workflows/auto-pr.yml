@@ -1,0 +1,78 @@
+# Auto PR — Creates a pull request when the auto-commit hook pushes to auto/* branches.
+# Review is handled by the Claude GitHub App (recommended) or self-hosted claude-code-action.
+#
+# Install into a project repo: ~/dotfiles-claude/install-workflows.sh /path/to/repo
+# Requires: Claude GitHub App installed on the repo (run /install-github-app in Claude Code).
+
+name: Auto PR
+
+on:
+  push:
+    branches: ['auto/**']
+
+concurrency:
+  group: auto-pr-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  create-pr:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Create or update PR
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          BRANCH="${GITHUB_REF_NAME}"
+
+          # Detect default branch
+          BASE=$(gh repo view --json defaultBranchRef --jq '.defaultBranchRef.name' 2>/dev/null || echo "main")
+
+          # Check for existing open PR from this branch
+          EXISTING=$(gh pr list --head "$BRANCH" --state open --json number --jq '.[0].number' 2>/dev/null)
+
+          if [ -n "$EXISTING" ]; then
+            echo "PR #${EXISTING} updated by push to ${BRANCH}."
+          else
+            gh pr create \
+              --head "$BRANCH" \
+              --base "$BASE" \
+              --title "auto: changes $(echo "$BRANCH" | sed 's|auto/||')" \
+              --body "$(cat <<'EOF'
+          Automated PR from Claude Code session.
+
+          Review will be posted by the Claude GitHub App.
+          To re-request review, comment `@claude review`.
+          EOF
+          )"
+            echo "PR created from ${BRANCH}."
+          fi
+
+  # ---------------------------------------------------------------------------
+  # OPTIONAL: Self-hosted review using claude-code-action.
+  # Uncomment this job if you are NOT using the Claude GitHub App.
+  # Requires: ANTHROPIC_API_KEY repo secret (from console.anthropic.com).
+  # ---------------------------------------------------------------------------
+  #
+  # review:
+  #   needs: create-pr
+  #   runs-on: ubuntu-latest
+  #   permissions:
+  #     contents: read
+  #     pull-requests: write
+  #     issues: write
+  #   timeout-minutes: 15
+  #   steps:
+  #     - uses: actions/checkout@v4
+  #       with:
+  #         fetch-depth: 0
+  #     - uses: anthropics/claude-code-action@v1
+  #       with:
+  #         anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
+  #         direct_prompt: |
+  #           Review this PR for bugs, security, and code quality.
+  #           Focus on high-impact issues. Skip style nits.

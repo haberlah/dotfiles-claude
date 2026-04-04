@@ -72,11 +72,14 @@ dotfiles-claude/
 ├── settings.local.example.json     # Permission template (copied on setup)
 ├── .gitignore                      # Blocks secrets and machine-specific config
 ├── hooks/
-│   ├── auto-commit-push.sh         # Stop: auto-commit + push after every response
+│   ├── auto-commit-push.sh         # Stop: auto-commit + push (or auto-PR)
 │   ├── check-cli-auth.sh           # SessionStart: verify GitHub + gws CLI auth
 │   ├── gws-write-guard.sh          # PreToolUse: block GWS writes without approval
 │   ├── brave-fallback-notify.sh    # PreToolUse: notify on Perplexity → Brave fallback
 │   └── pre-commit-secrets-check.sh # Git: scan for secrets before public commits
+├── workflows/
+│   └── auto-pr.yml                 # GitHub Action template: creates PRs from auto/* branches
+├── install-workflows.sh            # Install auto-PR workflow into a project repo
 ├── skills/                         # 123 local skills across 8 categories
 ├── setup.sh                        # One-command installer
 └── LICENSE                         # MIT
@@ -91,7 +94,7 @@ dotfiles-claude/
 | Setting | Value | Effect |
 |---|---|---|
 | `alwaysThinkingEnabled` | `true` | Extended thinking on every response. Better architecture decisions, debugging, and multi-step refactors. |
-| `effortLevel` | `"max"` | Maximum reasoning effort on every turn. |
+| `effortLevel` | `"high"` | High reasoning effort on every turn. |
 | `showTurnDuration` | `true` | Shows per-turn timing. Helps spot slow MCP tools or overly broad searches. |
 | `teammateMode` | `"tmux"` | Agent teams in tmux split panes. Watch each agent work in real time. |
 
@@ -103,6 +106,7 @@ dotfiles-claude/
 | `CLAUDE_AUTOCOMPACT_PCT_OVERRIDE` | `80` | Auto-compacts at 80% context usage (default 90%). Larger buffer before context limits. |
 | `CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS` | `1` | Enables parallel agent teams. Ask Claude to "use a team" for multi-file tasks. |
 | `MCP_TIMEOUT` | `30000` | 30s MCP server connection timeout (up from default 10s). |
+| `CLAUDE_CODE_EFFORT_LEVEL` | `max` | Maximum reasoning effort via environment variable (supplements `effortLevel` setting). |
 | `MCP_TOOL_TIMEOUT` | `180000` | 3-minute per-tool timeout. Needed for browser automation, file uploads, and deep research tools. |
 
 ### Permissions (`settings.local.example.json`)
@@ -123,7 +127,7 @@ Three-tier permission model: **deny > ask > allow**.
 
 | Script | Trigger | Purpose |
 |---|---|---|
-| `auto-commit-push.sh` | Stop | Stages, commits (`auto: <files>`), and pushes after every Claude response. Handles both the current project and this config repo. |
+| `auto-commit-push.sh` | Stop | Stages, commits (`auto: <files>`), and pushes after every Claude response. For opted-in project repos, pushes to `auto/` branches for PR review instead of main. |
 | `check-cli-auth.sh` | SessionStart | Verifies GitHub CLI (`gh`) and Google Workspace CLI (`gws`) tokens are valid. Prompts for re-auth if expired. |
 | `gws-write-guard.sh` | PreToolUse (Bash) | Intercepts Google Workspace CLI write operations (create, update, delete, send, etc.) and blocks them unless explicitly approved in ALL CAPS. Read-only operations pass silently. |
 | `brave-fallback-notify.sh` | PreToolUse (brave-search) | Alerts when Perplexity is unavailable and Brave Search is being used as a fallback. |
@@ -133,11 +137,44 @@ Three-tier permission model: **deny > ask > allow**.
 
 The Stop hook runs after every Claude response and handles two repos:
 
-**Your project** — stages, commits (`auto: <files>`), and pushes. Pre-commit hooks run normally.
+**Your project** — stages, commits (`auto: <files>`), and pushes. If the repo has `.github/workflows/auto-pr.yml` and is on `main`/`master`, pushes to an `auto/YYYY-MM-DD` branch instead — a GitHub Action creates the PR, and the Claude GitHub App reviews it (see [Auto-PR workflow](#auto-pr-workflow-opt-in) below).
 
-**This config repo** (`~/dotfiles-claude/`) — detects changes to settings, skills, or hooks and auto-commits. The pre-commit secrets hook runs before pushing. If secrets are detected, the push is blocked.
+**This config repo** (`~/dotfiles-claude/`) — detects changes to settings, skills, or hooks and auto-commits directly to main. The pre-commit secrets hook runs before pushing. If secrets are detected, the push is blocked.
 
 This means installing a skill, tweaking a setting, or adding a hook is automatically synced to GitHub.
+
+### Auto-PR workflow (opt-in)
+
+For project repos, the hook can create pull requests instead of pushing directly to main, with automated Claude review via the GitHub App.
+
+**Setup:**
+
+```bash
+# 1. Install the workflow into your project repo
+~/dotfiles-claude/install-workflows.sh /path/to/project
+
+# 2. Install the Claude GitHub App (handles review — uses your Teams/Max subscription)
+#    Run /install-github-app in Claude Code, or visit https://github.com/apps/claude
+
+# 3. Commit and push the workflow file
+cd /path/to/project
+git add .github/workflows/auto-pr.yml
+git commit -m "Add auto-PR workflow for Claude Code"
+git push
+```
+
+**How it works:**
+
+1. Stop hook commits changes to local `main` as usual
+2. Detects `.github/workflows/auto-pr.yml` → pushes to `auto/YYYY-MM-DD` branch instead of `main`
+3. GitHub Action creates a PR from the auto branch (one PR per day, accumulates commits)
+4. Claude GitHub App reviews the PR automatically
+5. You approve and merge — use **regular merge** (not squash) to keep local and remote in sync
+6. To re-request review, comment `@claude review` on the PR
+
+**Repos without the workflow** keep the existing behaviour — direct push to the current branch.
+
+**Without the Claude GitHub App:** Uncomment the `review` job in `auto-pr.yml` and set an `ANTHROPIC_API_KEY` repo secret for self-hosted review via `claude-code-action`.
 
 ## Security
 

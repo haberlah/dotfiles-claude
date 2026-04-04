@@ -1,7 +1,12 @@
 #!/bin/bash
 # Auto-commit and push all changes when Claude finishes responding.
 # Handles both the current project and the global dotfiles-claude config repo.
-# Outputs the pull command via stderr so Claude relays it to the user.
+#
+# For project repos with .github/workflows/auto-pr.yml on main/master:
+#   pushes to auto/YYYY-MM-DD branch (GitHub Action creates the PR).
+# For everything else: pushes to the current branch (direct push).
+#
+# Outputs status via stderr so Claude relays it to the user.
 
 auto_commit_push() {
   local dir="$1"
@@ -27,23 +32,34 @@ auto_commit_push() {
   CHANGED=$(git diff --cached --name-only 2>/dev/null | head -10 | tr '\n' ', ' | sed 's/,$//')
   [ -z "$CHANGED" ] && return 0
 
-  # Commit — skip hooks for project repos, but run them for dotfiles
-  # (the dotfiles pre-commit hook scans for secrets before pushing to a public repo)
-  if [ "$label" = "Config" ]; then
-    git commit -m "auto: ${CHANGED}" &>/dev/null || return 0
-  else
-    git commit -m "auto: ${CHANGED}" &>/dev/null || return 0
-  fi
+  # Commit (dotfiles pre-commit hook scans for secrets before pushing to public repo)
+  git commit -m "auto: ${CHANGED}" &>/dev/null || return 0
 
   # Push to remote
-  if git remote get-url origin &>/dev/null; then
-    if git push origin "$BRANCH" &>/dev/null; then
-      echo "${label}: committed and pushed to ${BRANCH}. Run: git pull origin ${BRANCH}" >&2
-    else
-      echo "${label}: committed locally but push failed. Run: git push origin ${BRANCH}" >&2
-    fi
-  else
+  if ! git remote get-url origin &>/dev/null; then
     echo "${label}: committed locally (no remote configured)." >&2
+    return 0
+  fi
+
+  # Project repos on main/master with auto-PR workflow: push to auto/ branch
+  REPO_ROOT=$(git rev-parse --show-toplevel 2>/dev/null)
+  if [ "$label" = "Project" ] \
+     && [[ "$BRANCH" = "main" || "$BRANCH" = "master" ]] \
+     && [ -f "${REPO_ROOT}/.github/workflows/auto-pr.yml" ]; then
+    AUTO_BRANCH="auto/$(date +%Y-%m-%d)"
+    if git push --force-with-lease origin "HEAD:refs/heads/${AUTO_BRANCH}" &>/dev/null; then
+      echo "Project: pushed to ${AUTO_BRANCH}." >&2
+    else
+      echo "Project: push to ${AUTO_BRANCH} failed. Committed locally." >&2
+    fi
+    return 0
+  fi
+
+  # Default: push to current branch
+  if git push origin "$BRANCH" &>/dev/null; then
+    echo "${label}: committed and pushed to ${BRANCH}." >&2
+  else
+    echo "${label}: committed locally but push failed." >&2
   fi
 }
 
