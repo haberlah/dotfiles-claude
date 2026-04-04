@@ -153,7 +153,8 @@ echo "$FILES_JSON" | jq -c '.files[]' | while IFS= read -r file; do
     # ── All other files → download as-is ──
     *)
       # Also skip by file extension for non-Google MIME types
-      case "${NAME,,}" in
+      LOWER_NAME=$(echo "$NAME" | tr '[:upper:]' '[:lower:]')
+      case "$LOWER_NAME" in
         *.mp4|*.mp3|*.m4a|*.wav|*.avi|*.mov|*.mkv|*.flac|*.ogg|*.webm|*.wmv|*.aac)
           echo "SKIP (media): $NAME"
           continue

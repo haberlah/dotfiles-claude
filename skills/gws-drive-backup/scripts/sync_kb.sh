@@ -54,7 +54,7 @@ DRIVES=$(gws drive drives list --params '{"pageSize": 50}' 2>/dev/null | jq -r '
 # Personal drive (only if --include-personal flag is set)
 if [ "$SHARED_ONLY" = false ]; then
   echo "Including personal drive..."
-  bash "$SCRIPT_DIR/gws_backup.sh" "$BACKUP_DIR/my_drive" 2>/dev/null || true
+  bash "$SCRIPT_DIR/gws_backup.sh" "$BACKUP_DIR/my_drive" </dev/null 2>/dev/null || true
 else
   echo "Skipping personal drive (shared drives only by default)"
   echo "  Use --include-personal to include personal Drive files"
@@ -65,7 +65,7 @@ echo "$DRIVES" | while IFS=$'\t' read -r drive_id drive_name; do
   [ -z "$drive_id" ] && continue
   safe_name=$(echo "$drive_name" | sed 's/[/:*?"<>|]/_/g; s/ /_/g')
   echo "Shared drive: $drive_name"
-  bash "$SCRIPT_DIR/gws_backup.sh" "$BACKUP_DIR/shared_drives/$safe_name" --scope shared --drive-id "$drive_id" 2>/dev/null || true
+  bash "$SCRIPT_DIR/gws_backup.sh" "$BACKUP_DIR/shared_drives/$safe_name" --scope shared --drive-id "$drive_id" </dev/null 2>/dev/null || true
 done
 echo ""
 
