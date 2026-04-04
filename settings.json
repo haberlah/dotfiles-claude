@@ -5,7 +5,8 @@
     "CLAUDE_CODE_MAX_OUTPUT_TOKENS": "64000",
     "CLAUDE_AUTOCOMPACT_PCT_OVERRIDE": "80",
     "MCP_TIMEOUT": "30000",
-    "MCP_TOOL_TIMEOUT": "180000"
+    "MCP_TOOL_TIMEOUT": "180000",
+    "CLAUDE_CODE_EFFORT_LEVEL": "max"
   },
   "permissions": {
     "deny": []
@@ -65,7 +66,7 @@
     "slack@claude-plugins-official": true
   },
   "alwaysThinkingEnabled": true,
-  "effortLevel": "max",
+  "effortLevel": "high",
   "showTurnDuration": true,
   "teammateMode": "tmux"
 }
