@@ -62,28 +62,11 @@ Always try multiple tools before reporting failure. Run search and browsing in p
 
 A Stop hook auto-commits and pushes after every response. Do NOT ask about version control for routine changes — the hook handles it.
 
-### When to create a PR yourself (project repos on main/master)
+### Project repos on main/master — auto PR + code review
 
-After completing a task that changes files in a project repo (not dotfiles-claude), create a PR, trigger Claude Code Review, and present the results — all in the same response:
+After completing work that changes files in a project repo (not dotfiles-claude), use the `auto-pr-review` skill to create a PR, trigger Claude Code Review, and present results for approval. The skill handles commit, push to `auto/` branch, PR creation, review trigger, polling, and fallback.
 
-1. **Commit and push**: `git add` changed files, commit with a descriptive message, push to `auto/YYYY-MM-DD` branch:
-   ```
-   git push --force-with-lease origin "HEAD:refs/heads/auto/$(date +%Y-%m-%d)"
-   ```
-2. **Create or detect PR**: `gh pr list --head "auto/$(date +%Y-%m-%d)" --state open` → `gh pr create` if none exists
-3. **Trigger Claude Code Review**: `gh pr comment <number> --body "@claude review"` — this triggers the Claude GitHub App (Bellamed-ai org, Teams subscription) to post an independent multi-agent review
-4. **Wait and retrieve**: Poll with `gh pr view <number> --comments` (check every 30s, up to 5 minutes). Look for a comment from `claude[bot]` or `github-actions[bot]`
-5. **Present the review**: Show the review findings to the user with a summary and recommendation
-6. **Wait for approval**: Do not merge until the user explicitly approves
-
-The Stop hook will find a clean working tree and skip the project repo (it still handles dotfiles-claude separately).
-
-**Do not create PRs for:**
-- dotfiles-claude (config repo — hook pushes directly to main)
-- Feature branches (hook pushes directly)
-- Trivial changes where the user clearly wants a quick push (use judgement)
-
-**If the review doesn't arrive within 5 minutes**: present your own diff assessment as a fallback and note that the App review is still pending on GitHub.
+The Stop hook serves as a safety net — if the skill already committed, the hook finds a clean working tree and skips the project repo.
 
 ## Google Workspace access
 
