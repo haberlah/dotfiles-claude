@@ -12,7 +12,8 @@ An opinionated [Claude Code](https://docs.anthropic.com/en/docs/claude-code) set
 | **Parallel work** | Agent teams with tmux split panes for real-time visibility |
 | **Zero friction** | Auto-commit + push on every response, broad tool permissions |
 | **Data science** | dbt + Snowflake skills via plugin, SQL/notebook conventions in CLAUDE.md |
-| **Safety** | Pre-commit hook blocks secrets, deny rules protect sensitive files |
+| **Google Workspace** | 43 GWS skills + 41 recipe workflows for Gmail, Drive, Sheets, Docs, Calendar, and more |
+| **Safety** | 5 hooks (secret scanning, write guards, auth checks), deny rules protect sensitive files |
 
 ## Quick Start
 
@@ -67,17 +68,21 @@ Runs silently in the background on first terminal open each day. `--ff-only` ens
 ```
 dotfiles-claude/
 ├── CLAUDE.md                       # Global instructions for every session
-├── settings.json                   # Core settings, env vars, hooks
+├── settings.json                   # Core settings, env vars, hooks, plugins
 ├── settings.local.example.json     # Permission template (copied on setup)
+├── .gitignore                      # Blocks secrets and machine-specific config
 ├── hooks/
-│   ├── auto-commit-push.sh         # Stop hook: auto-commit + push
-│   └── pre-commit-secrets-check.sh # Git hook: blocks secrets from commits
-├── skills/                         # 13 local skills (+ 9 via plugin)
+│   ├── auto-commit-push.sh         # Stop: auto-commit + push after every response
+│   ├── check-cli-auth.sh           # SessionStart: verify GitHub + gws CLI auth
+│   ├── gws-write-guard.sh          # PreToolUse: block GWS writes without approval
+│   ├── brave-fallback-notify.sh    # PreToolUse: notify on Perplexity → Brave fallback
+│   └── pre-commit-secrets-check.sh # Git: scan for secrets before public commits
+├── skills/                         # 123 local skills across 8 categories
 ├── setup.sh                        # One-command installer
 └── LICENSE                         # MIT
 ```
 
-> `settings.local.json` is gitignored — your machine-specific permissions stay local and are never pushed.
+> `settings.local.json` is gitignored — your machine-specific permissions and tokens stay local and are never pushed.
 
 ## Settings Reference
 
@@ -86,6 +91,7 @@ dotfiles-claude/
 | Setting | Value | Effect |
 |---|---|---|
 | `alwaysThinkingEnabled` | `true` | Extended thinking on every response. Better architecture decisions, debugging, and multi-step refactors. |
+| `effortLevel` | `"max"` | Maximum reasoning effort on every turn. |
 | `showTurnDuration` | `true` | Shows per-turn timing. Helps spot slow MCP tools or overly broad searches. |
 | `teammateMode` | `"tmux"` | Agent teams in tmux split panes. Watch each agent work in real time. |
 
@@ -97,7 +103,7 @@ dotfiles-claude/
 | `CLAUDE_AUTOCOMPACT_PCT_OVERRIDE` | `80` | Auto-compacts at 80% context usage (default 90%). Larger buffer before context limits. |
 | `CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS` | `1` | Enables parallel agent teams. Ask Claude to "use a team" for multi-file tasks. |
 | `MCP_TIMEOUT` | `30000` | 30s MCP server connection timeout (up from default 10s). |
-| `MCP_TOOL_TIMEOUT` | `60000` | 60s per-tool timeout. Needed for browser automation and file uploads. |
+| `MCP_TOOL_TIMEOUT` | `180000` | 3-minute per-tool timeout. Needed for browser automation, file uploads, and deep research tools. |
 
 ### Permissions (`settings.local.example.json`)
 
@@ -106,18 +112,30 @@ Three-tier permission model: **deny > ask > allow**.
 | Tier | What it covers |
 |---|---|
 | **deny** | Reading `.env` files, SSH keys, AWS credentials, `.pem`/`.key` files — always blocked |
-| **ask** | Destructive ops: `rm -rf`, `sudo rm`, `git push --force`, `git reset --hard`, `git checkout --`, `git clean`, `git branch -D`, `chmod 777` — requires confirmation |
-| **allow** | Everything else: file ops, Bash, web access, Playwright, Brave Search — runs without prompting |
+| **ask** | Destructive ops: `rm -rf`, `sudo`, `git push --force`, `git reset --hard`, `git checkout --`, `git clean`, `git branch -D`, `chmod 777`, piped curl installs — requires confirmation |
+| **allow** | Everything else: file ops, Bash, web access, Playwright, Brave Search, Perplexity, GitHub read tools — runs without prompting |
 
-> **Note:** `Bash(*)` auto-allows all shell commands. This is for power users who trust Claude to operate autonomously. For tighter control, remove it from the allow list — Claude will then prompt before each command.
+> **Note:** `Bash(*)` auto-allows all shell commands not matched by deny or ask rules. This is for power users who trust Claude to operate autonomously. For tighter control, remove it from the allow list — Claude will then prompt before each command.
 
-## Auto-Commit Workflow
+## Hooks
+
+5 automation scripts, configured in `settings.json` and installed by `setup.sh`:
+
+| Script | Trigger | Purpose |
+|---|---|---|
+| `auto-commit-push.sh` | Stop | Stages, commits (`auto: <files>`), and pushes after every Claude response. Handles both the current project and this config repo. |
+| `check-cli-auth.sh` | SessionStart | Verifies GitHub CLI (`gh`) and Google Workspace CLI (`gws`) tokens are valid. Prompts for re-auth if expired. |
+| `gws-write-guard.sh` | PreToolUse (Bash) | Intercepts Google Workspace CLI write operations (create, update, delete, send, etc.) and blocks them unless explicitly approved in ALL CAPS. Read-only operations pass silently. |
+| `brave-fallback-notify.sh` | PreToolUse (brave-search) | Alerts when Perplexity is unavailable and Brave Search is being used as a fallback. |
+| `pre-commit-secrets-check.sh` | Git pre-commit | Scans staged files for API keys, JWTs, private keys, session cookies, and credential files before committing to this public repo. |
+
+### Auto-commit detail
 
 The Stop hook runs after every Claude response and handles two repos:
 
-**Your project** — stages, commits (`auto: <files>`), and pushes. Uses `--no-verify` for speed.
+**Your project** — stages, commits (`auto: <files>`), and pushes. Pre-commit hooks run normally.
 
-**This config repo** (`~/dotfiles-claude/`) — detects changes to settings, skills, or hooks and auto-commits. Runs the pre-commit secrets hook before pushing. If secrets are detected, the push is blocked.
+**This config repo** (`~/dotfiles-claude/`) — detects changes to settings, skills, or hooks and auto-commits. The pre-commit secrets hook runs before pushing. If secrets are detected, the push is blocked.
 
 This means installing a skill, tweaking a setting, or adding a hook is automatically synced to GitHub.
 
@@ -134,27 +152,24 @@ This means installing a skill, tweaking a setting, or adding a hook is automatic
 
 **Deny rules** in permissions prevent Claude from reading `.env` files, SSH keys, and cloud credentials during sessions.
 
+**Write guard** hook intercepts all Google Workspace write operations and requires explicit ALL CAPS approval before execution.
+
 ## Skills
 
-13 local skills + 9 via plugin (22 total):
+123 local skills organised into 8 categories, plus 9 via plugin:
 
-### Local skills (in `skills/`)
+| Category | Count | What's included |
+|---|---|---|
+| **Google Workspace** | 43 | Core service access (Gmail, Drive, Sheets, Docs, Slides, Calendar, Chat, Tasks, Forms, Keep, Meet, Classroom, People), action variants (`gws-gmail-send`, `gws-sheets-append`, `gws-calendar-insert`), multi-service workflows (`gws-workflow-meeting-prep`, `gws-workflow-weekly-digest`), admin and security (`gws-admin-reports`, `gws-modelarmor`) |
+| **Recipes** | 41 | Pre-built multi-step workflows: email automation, calendar management, Drive operations, Sheets data tasks, cross-service workflows (`recipe-post-mortem-setup`, `recipe-send-team-announcement`, `recipe-create-events-from-sheet`) |
+| **Personas** | 10 | Role-based assistants: `persona-exec-assistant`, `persona-team-lead`, `persona-project-manager`, `persona-sales-ops`, `persona-researcher`, `persona-content-creator`, `persona-customer-support`, `persona-event-coordinator`, `persona-hr-coordinator`, `persona-it-admin` |
+| **Design & Creative** | 10 | `frontend-design`, `canvas-design`, `algorithmic-art`, `wardley-mapping`, `web-artifacts-builder`, `web-design-guidelines`, `brand-guidelines`, `theme-factory`, `image-enhancer`, `slack-gif-creator` |
+| **Content & Research** | 7 | `article-extractor`, `doc-coauthoring`, `csv-data-summarizer`, `lead-research-assistant`, `notebooklm-skill-master`, `internal-comms`, `file-organizer` |
+| **Development** | 6 | `claude-api`, `mcp-builder`, `react-best-practices`, `skill-creator`, `wcag-accessibility`, `replit-prd` |
+| **Office Formats** | 4 | `docx`, `pdf`, `pptx`, `xlsx` — create, edit, extract, and convert office files |
+| **Browser & Testing** | 2 | `playwright`, `webapp-testing` — browser automation and local web app testing |
 
-| Skill | Purpose |
-|---|---|
-| `article-extractor` | Extract clean content from URLs |
-| `docx` | Create/edit Word documents with tracked changes |
-| `pdf` | Extract, merge, split, fill PDF forms |
-| `playwright` | Browser automation and testing |
-| `pptx` | Create/edit presentations |
-| `react-best-practices` | Vercel's React/Next.js performance patterns |
-| `replit-prd` | PRD generation for Replit Agent |
-| `skill-creator` | Create new Claude Code skills |
-| `wcag-accessibility` | WCAG 2.2 AA compliance |
-| `web-artifacts-builder` | Multi-component HTML artifacts |
-| `web-design-guidelines` | UI review against best practices |
-| `webapp-testing` | Test local web apps with Playwright |
-| `xlsx` | Create/analyse spreadsheets |
+All skills are invoked with `/<skill-name>` (e.g., `/pdf`, `/xlsx`, `/recipe-find-free-time`). Browse `skills/` for the full list. To remove a skill, delete its directory.
 
 ### Plugin skills ([AltimateAI/data-engineering-skills](https://github.com/AltimateAI/data-engineering-skills))
 
@@ -177,18 +192,21 @@ Skills are available immediately in your next Claude Code session.
 | `dbt-skills` | creating-dbt-models, debugging-dbt-errors, testing-dbt-models, documenting-dbt-models, migrating-sql-to-dbt, refactoring-dbt-models |
 | `snowflake-skills` | finding-expensive-queries, optimizing-query-by-id, optimizing-query-text |
 
-All skills are automatically available in Claude Code sessions. To invoke a skill, use `/<skill-name>` (e.g., `/pdf`, `/xlsx`). To remove a local skill, delete its directory from `skills/`. Plugin skills are managed via `claude plugin list` / `claude plugin uninstall`.
-
 ## Customising After Forking
 
 | File | What to change |
 |---|---|
-| `CLAUDE.md` | Language preference, workflow conventions |
-| `settings.local.json` | Your MCP server permissions, Bash permission level (gitignored — edit locally) |
-| `settings.json` | Token limits, auto-commit behaviour, MCP timeouts |
+| `CLAUDE.md` | Language preference, workflow conventions, tool selection rules |
+| `settings.local.json` | Your tokens, MCP server permissions, Bash permission level (gitignored — edit locally) |
+| `settings.json` | Token limits, auto-commit behaviour, MCP timeouts, enabled plugins |
 | `skills/` | Remove skills you don't use, add your own |
+| `hooks/` | Remove or modify hooks (e.g., disable auto-commit, add custom guards) |
 
-Shared settings (`settings.json`, `CLAUDE.md`, hooks, skills) sync via git. Machine-specific permissions (`settings.local.json`) stay local.
+Shared settings (`settings.json`, `CLAUDE.md`, hooks, skills) sync via git. Machine-specific permissions and tokens (`settings.local.json`) stay local.
+
+### Known caveat: symlink breakage
+
+`setup.sh` symlinks `settings.json` into `~/.claude/`. Claude Code occasionally replaces symlinks with regular files via atomic writes (temp file → rename). If your active settings drift from the repo, re-run `setup.sh` to restore the symlinks.
 
 ## Prerequisites
 

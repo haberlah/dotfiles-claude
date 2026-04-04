@@ -33,19 +33,18 @@ Use the Perplexity MCP tools as the primary search and research engine. Select t
 
 | Tool | When to use | Context size | Speed |
 |------|-------------|-------------|-------|
-| **perplexity_ask** | **DEFAULT** for factual lookups, API docs, error messages, procedural guidance. Single-intent queries with established answers. | `low` for stable facts, `medium` for recent/evolving topics | ~3s |
-| **perplexity_reason** | Comparisons, architectural analysis, current-state synthesis, anything requiring multi-source reasoning. Use `strip_thinking: true` when context window is getting full. | `medium` default, `high` only for comparisons or emerging tech | ~5s |
+| **perplexity_ask** | **DEFAULT** for all standard queries: factual lookups, API docs, error messages, recent changes, procedural guidance. | `medium` always. Add `search_recency_filter` for evolving topics | ~3s |
+| **perplexity_reason** | Comparisons, architectural analysis, current-state synthesis, anything requiring multi-source reasoning. Use `strip_thinking: true` when context window is getting full. | `high` | ~5s |
 | **perplexity_search** | URL discovery only — when you need raw links to show the user or feed into another tool. NOT needed alongside ask/reason. | N/A | ~2s |
 | **perplexity_research** | ONLY when user explicitly requests "deep research" or "comprehensive investigation". Never use autonomously. Always use `reasoning_effort: "high"` and `strip_thinking: true`. Warn user it takes 90-120s before calling. | N/A | 90-120s |
 
 **Decision tree (use for all web queries):**
-1. Is it a factual lookup, error code, API signature, or "how do I..."? → `perplexity_ask` + `low` context
-2. Does it involve recent changes or evolving best practices? → `perplexity_ask` + `medium` context
-3. Does it require comparing alternatives, synthesising multiple sources, or analysing tradeoffs? → `perplexity_reason` + `medium` context (or `high` for broad comparisons)
-4. Is it a strategic/migration/adoption decision the user explicitly wants researched in depth? → Warn about 90-120s, then `perplexity_research`
+1. Does it require comparing alternatives, synthesising multiple sources, or analysing tradeoffs? → `perplexity_reason` + `high` context
+2. Is it a strategic/migration/adoption decision the user explicitly wants researched in depth? → Warn about 90-120s, then `perplexity_research`
+3. Everything else (the default) → `perplexity_ask` + `medium` context. Add `search_recency_filter: "week"` or `"month"` for recent or evolving topics
 
 **Quality settings for ask and reason:**
-- Use `search_recency_filter: "day"` or `"week"` for current events
+- Use `search_recency_filter: "day"` or `"week"` for current events (applied to `perplexity_ask` as needed)
 - Use `search_domain_filter` to restrict to authoritative sources when appropriate
 - Use `strip_thinking: true` on reason when context window is getting full
 
