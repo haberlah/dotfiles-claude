@@ -145,8 +145,20 @@ echo "$FILES_JSON" | jq -c '.files[]' | while IFS= read -r file; do
       echo "FORM: $NAME (skipped — not exportable)"
       ;;
 
+    # ── Audio/video → skip (too large, not AI-readable) ──
+    audio/*|video/*|application/vnd.google-apps.audio|application/vnd.google-apps.video)
+      echo "SKIP (media): $NAME"
+      ;;
+
     # ── All other files → download as-is ──
     *)
+      # Also skip by file extension for non-Google MIME types
+      case "${NAME,,}" in
+        *.mp4|*.mp3|*.m4a|*.wav|*.avi|*.mov|*.mkv|*.flac|*.ogg|*.webm|*.wmv|*.aac)
+          echo "SKIP (media): $NAME"
+          continue
+          ;;
+      esac
       echo "FILE: $NAME"
       cd "$OUTPUT_DIR"
       gws drive files get --params "{\"fileId\": \"$ID\", \"alt\": \"media\"}" >/dev/null 2>&1

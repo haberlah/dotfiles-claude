@@ -41,6 +41,7 @@ bash <skill_dir>/scripts/gws_backup.sh <output_dir> [--scope personal|shared|all
 | Google Sheets | subfolder: `.csv` per tab + `.xlsx` |
 | Google Slides | `.pptx` |
 | Google Forms | skipped (not exportable) |
+| Audio/video | skipped (.mp4, .mp3, .wav, .mov, etc.) |
 | Other files | as-is (PDF, DOCX, XLSX, ZIP, etc.) |
 
 ### Phase 2 — Convert local files (`convert_local.py`)
@@ -132,7 +133,7 @@ Each rule is a regex tested against the file's relative path. First match wins. 
 - `title`, `google_doc_id`, `google_doc_url` (from Drive metadata)
 - `last_modified`, `last_modified_by` (from Drive metadata)
 - `category`, `tags`, `doc_type` (derived from repo path and filename)
-- `word_count`, `has_images`, `sensitivity` (computed locally)
+- `word_count`, `has_images` (computed locally)
 
 ### Phase 5 — Generate index and sync (`sync_kb.sh`)
 

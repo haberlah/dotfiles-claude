@@ -130,18 +130,6 @@ def should_include(path, name):
         return False  # Handle separately via image references
     return False
 
-def get_sensitivity(category, filename):
-    """Auto-assign sensitivity from path/category."""
-    if category and category.startswith('contacts'):
-        return 'confidential'
-    if category and category.startswith('legal'):
-        return 'confidential'
-    if 'transcript' in filename.lower():
-        return 'confidential'
-    if 'website' in filename.lower() and category and 'comms' in category:
-        return 'public'
-    return 'internal'
-
 def get_doc_type(category, filename):
     """Infer document type."""
     if category and 'template' in category:
@@ -238,7 +226,6 @@ def inject_frontmatter(filepath, meta, category, source_drive):
     word_count = len(content.split())
     has_images = bool(re.search(r'!\[', content))
     filename = os.path.basename(filepath)
-    sensitivity = get_sensitivity(category, filename)
     doc_type = get_doc_type(category, filename)
     tags = get_tags(filename, category)
 
@@ -263,7 +250,6 @@ tags: [{', '.join(tags)}]
 doc_type: {doc_type}
 word_count: {word_count}
 has_images: {str(has_images).lower()}
-sensitivity: {sensitivity}
 ---
 
 """
