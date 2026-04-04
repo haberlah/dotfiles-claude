@@ -78,8 +78,8 @@ dotfiles-claude/
 │   ├── brave-fallback-notify.sh    # PreToolUse: notify on Perplexity → Brave fallback
 │   └── pre-commit-secrets-check.sh # Git: scan for secrets before public commits
 ├── workflows/
-│   └── auto-pr.yml                 # GitHub Action template: creates PRs from auto/* branches
-├── install-workflows.sh            # Install auto-PR workflow into a project repo
+│   └── auto-pr.yml                 # Optional GitHub Action for self-hosted review fallback
+├── install-workflows.sh            # Install self-hosted review workflow into a project repo
 ├── skills/                         # 123 local skills across 8 categories
 ├── setup.sh                        # One-command installer
 └── LICENSE                         # MIT
@@ -137,44 +137,37 @@ Three-tier permission model: **deny > ask > allow**.
 
 The Stop hook runs after every Claude response and handles two repos:
 
-**Your project** — stages, commits (`auto: <files>`), and pushes. If the repo has `.github/workflows/auto-pr.yml` and is on `main`/`master`, pushes to an `auto/YYYY-MM-DD` branch instead — a GitHub Action creates the PR, and the Claude GitHub App reviews it (see [Auto-PR workflow](#auto-pr-workflow-opt-in) below).
+**Your project** — on `main`/`master`, pushes to an `auto/YYYY-MM-DD` branch and creates a PR via `gh` CLI. The Claude GitHub App reviews the PR automatically. On feature branches, pushes directly.
 
-**This config repo** (`~/dotfiles-claude/`) — detects changes to settings, skills, or hooks and auto-commits directly to main. The pre-commit secrets hook runs before pushing. If secrets are detected, the push is blocked.
+**This config repo** (`~/dotfiles-claude/`) — auto-commits directly to main. The pre-commit secrets hook runs before pushing. If secrets are detected, the push is blocked.
 
-This means installing a skill, tweaking a setting, or adding a hook is automatically synced to GitHub.
+### Auto-PR workflow
 
-### Auto-PR workflow (opt-in)
+All project repos on `main`/`master` get automatic PRs. No per-repo setup needed.
 
-For project repos, the hook can create pull requests instead of pushing directly to main, with automated Claude review via the GitHub App.
+**One-time setup (org level):**
 
-**Setup:**
+Install the Claude GitHub App on your GitHub org — handles review on all repos, uses your Teams/Max subscription:
 
 ```bash
-# 1. Install the workflow into your project repo
-~/dotfiles-claude/install-workflows.sh /path/to/project
+# In Claude Code CLI:
+/install-github-app
 
-# 2. Install the Claude GitHub App (handles review — uses your Teams/Max subscription)
-#    Run /install-github-app in Claude Code, or visit https://github.com/apps/claude
-
-# 3. Commit and push the workflow file
-cd /path/to/project
-git add .github/workflows/auto-pr.yml
-git commit -m "Add auto-PR workflow for Claude Code"
-git push
+# Or visit: https://github.com/apps/claude
 ```
 
 **How it works:**
 
 1. Stop hook commits changes to local `main` as usual
-2. Detects `.github/workflows/auto-pr.yml` → pushes to `auto/YYYY-MM-DD` branch instead of `main`
-3. GitHub Action creates a PR from the auto branch (one PR per day, accumulates commits)
+2. Pushes to `auto/YYYY-MM-DD` branch instead of `main`
+3. Hook creates a PR via `gh` CLI (one PR per day, accumulates commits)
 4. Claude GitHub App reviews the PR automatically
 5. You approve and merge — use **regular merge** (not squash) to keep local and remote in sync
 6. To re-request review, comment `@claude review` on the PR
 
-**Repos without the workflow** keep the existing behaviour — direct push to the current branch.
+**Feature branches** push directly — the auto-PR flow only applies to `main`/`master`.
 
-**Without the Claude GitHub App:** Uncomment the `review` job in `auto-pr.yml` and set an `ANTHROPIC_API_KEY` repo secret for self-hosted review via `claude-code-action`.
+**Self-hosted review alternative:** Add the `workflows/auto-pr.yml` template to a repo and uncomment the `claude-code-action` review job. Requires `ANTHROPIC_API_KEY` repo secret.
 
 ## Security
 
