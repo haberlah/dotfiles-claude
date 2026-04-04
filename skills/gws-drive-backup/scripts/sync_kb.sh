@@ -107,7 +107,9 @@ CHANGES_DELETED=$(git diff --name-only --diff-filter=D | wc -l | tr -d ' ')
 
 echo "Changes: $CHANGES_ADDED added, $CHANGES_MODIFIED modified, $CHANGES_DELETED deleted"
 
-git checkout -b "$BRANCH" 2>/dev/null || git checkout "$BRANCH" 2>/dev/null
+# Delete stale local branch from prior runs, then create fresh
+git branch -D "$BRANCH" 2>/dev/null || true
+git checkout -b "$BRANCH"
 git add -A
 
 git commit -m "$(cat <<EOF
