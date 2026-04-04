@@ -58,9 +58,27 @@ Use the Perplexity MCP tools as the primary search and research engine. Select t
 
 Always try multiple tools before reporting failure. Run search and browsing in parallel when possible.
 
-## Auto-commit workflow
+## Auto-commit and PR workflow
 
-Changes are automatically committed and pushed to GitHub by a Stop hook after each response. Do NOT ask about version control — it is handled automatically.
+A Stop hook auto-commits and pushes after every response. Do NOT ask about version control for routine changes — the hook handles it.
+
+### When to create a PR yourself (project repos on main/master)
+
+After completing a task that changes files in a project repo (not dotfiles-claude), create a PR and review it **in the same response**:
+
+1. `git add` the changed files and commit with a descriptive message
+2. Push to `auto/YYYY-MM-DD` branch: `git push --force-with-lease origin "HEAD:refs/heads/auto/$(date +%Y-%m-%d)"`
+3. Create or detect existing PR: `gh pr list --head "auto/$(date +%Y-%m-%d)" --state open` then `gh pr create` if none exists
+4. Review the diff: `gh pr diff <number>` or `git diff main...HEAD`
+5. Present a brief assessment: what changed, anything that looks wrong, and whether it's ready to merge
+6. Wait for the user to approve before merging
+
+The Stop hook will find a clean working tree and skip the project repo (it still handles dotfiles-claude separately).
+
+**Do not create PRs for:**
+- dotfiles-claude (config repo — hook pushes directly to main)
+- Feature branches (hook pushes directly)
+- Trivial changes where the user clearly wants a quick push (use judgement)
 
 ## Google Workspace access
 
