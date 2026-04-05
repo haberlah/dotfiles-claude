@@ -27,21 +27,26 @@ Before doing anything, check:
 - Current branch name (`git branch --show-current`)
 - Repo name (`gh repo view --json nameWithOwner --jq '.nameWithOwner'` or from git remote)
 
-Then present the decision:
+Then present the decision using the **AskUserQuestion** tool for an interactive selection menu:
 
 ```
-How would you like to proceed?
-
-1. **Commit and push** — push directly to [current branch] (no PR)
-2. **Create PR** — push to auto/ branch and open a PR (no review)
-3. **Create PR + Claude Code Review** — full review workflow (~$15-25, 5-20 min)
+AskUserQuestion with:
+  question: "How would you like to push these changes to GitHub?"
+  header: "Push method"
+  options:
+    - label: "Commit and push"
+      description: "Push directly to [current branch] (no PR, no review)"
+    - label: "Create PR"
+      description: "Push to auto/ branch and open a PR (no review)"
+    - label: "Create PR + Claude Code Review"
+      description: "Full review workflow with Claude GitHub App (~$15-25, 5-20 min)"
 ```
 
-**Smart detection — skip the prompt if intent is clear:**
+**Smart detection — skip the prompt if intent is already clear:**
 - User said "push it", "commit this", "push to main" → option 1
 - User said "create a PR", "open a PR" → option 2
 - User said "review", "review it", "get a review", "PR with review" → option 3
-- User said "done", "finished" or similar without specifying → present the prompt
+- User said "done", "finished" or similar without specifying → show the interactive menu
 
 ### Step 1 — Commit
 
