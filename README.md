@@ -72,7 +72,7 @@ dotfiles-claude/
 ├── settings.local.example.json     # Permission template (copied on setup)
 ├── .gitignore                      # Blocks secrets and machine-specific config
 ├── hooks/
-│   ├── auto-commit-push.sh         # Stop: auto-commit + push (or auto-PR)
+│   ├── auto-commit-push.sh         # Stop: auto-commit + push (dotfiles-claude only)
 │   ├── check-cli-auth.sh           # SessionStart: verify GitHub + gws CLI auth
 │   ├── gws-write-guard.sh          # PreToolUse: block GWS writes without approval
 │   ├── brave-fallback-notify.sh    # PreToolUse: notify on Perplexity → Brave fallback
@@ -127,7 +127,7 @@ Three-tier permission model: **deny > ask > allow**.
 
 | Script | Trigger | Purpose |
 |---|---|---|
-| `auto-commit-push.sh` | Stop | Stages, commits (`auto: <files>`), and pushes after every Claude response. For opted-in project repos, pushes to `auto/` branches for PR review instead of main. |
+| `auto-commit-push.sh` | Stop | Auto-commits and pushes the dotfiles-claude config repo only. Project repos are handled by the `claude-pr-review` skill. |
 | `check-cli-auth.sh` | SessionStart | Verifies GitHub CLI (`gh`) and Google Workspace CLI (`gws`) tokens are valid. Prompts for re-auth if expired. |
 | `gws-write-guard.sh` | PreToolUse (Bash) | Intercepts Google Workspace CLI write operations (create, update, delete, send, etc.) and blocks them unless explicitly approved in ALL CAPS. Read-only operations pass silently. |
 | `brave-fallback-notify.sh` | PreToolUse (brave-search) | Alerts when Perplexity is unavailable and Brave Search is being used as a fallback. |
@@ -135,39 +135,33 @@ Three-tier permission model: **deny > ask > allow**.
 
 ### Auto-commit detail
 
-The Stop hook runs after every Claude response and handles two repos:
+The Stop hook runs after every Claude response and handles **only the dotfiles-claude config repo** — auto-commits and pushes directly to main. The pre-commit secrets hook runs before pushing. If secrets are detected, the push is blocked.
 
-**Your project** — on `main`/`master`, pushes to an `auto/YYYY-MM-DD` branch and creates a PR via `gh` CLI. The Claude GitHub App reviews the PR automatically. On feature branches, pushes directly.
+### Project repos — `claude-pr-review` skill
 
-**This config repo** (`~/dotfiles-claude/`) — auto-commits directly to main. The pre-commit secrets hook runs before pushing. If secrets are detected, the push is blocked.
+Project repos are **not** auto-committed by the hook. Instead, Claude invokes the `claude-pr-review` skill after completing work. The skill asks the user to choose:
 
-### Auto-PR workflow
+1. **Commit and push** — direct push to the current branch (no PR)
+2. **Create PR** — push to `auto/YYYY-MM-DD` branch, open a PR
+3. **Create PR + Claude Code Review** — full review workflow (~$15-25, 5-20 min)
 
-All project repos on `main`/`master` get automatic PRs. No per-repo setup needed.
+**One-time setup (org level, for option 3):**
 
-**One-time setup (org level):**
+1. Install the Claude GitHub App: visit https://github.com/apps/claude → Install on your org
+2. Enable Code Review: claude.ai → Organisation → Claude Code → Code Review (toggle on)
+3. Set review behaviour to **Manual (@claude review)** for each repo
+4. Set overage spend limit: claude.ai → Organisation → Usage
+5. Ensure each repo has a `CLAUDE.md` in root
 
-Install the Claude GitHub App on your GitHub org — handles review on all repos, uses your Teams/Max subscription:
+**How option 3 works:**
 
-```bash
-# In Claude Code CLI:
-/install-github-app
-
-# Or visit: https://github.com/apps/claude
-```
-
-**How it works:**
-
-1. Stop hook commits changes to local `main` as usual
-2. Pushes to `auto/YYYY-MM-DD` branch instead of `main`
-3. Hook creates a PR via `gh` CLI (one PR per day, accumulates commits)
-4. Claude GitHub App reviews the PR automatically
-5. You approve and merge — use **regular merge** (not squash) to keep local and remote in sync
-6. To re-request review, comment `@claude review` on the PR
-
-**Feature branches** push directly — the auto-PR flow only applies to `main`/`master`.
-
-**Self-hosted review alternative:** Add the `workflows/auto-pr.yml` template to a repo and uncomment the `claude-code-action` review job. Requires `ANTHROPIC_API_KEY` repo secret.
+1. Skill commits and pushes to `auto/YYYY-MM-DD` branch
+2. Creates PR via `gh` CLI
+3. Posts `[Claude Code] @claude review once` (with anti-spam guards)
+4. Polls for review (5-20 min)
+5. Presents findings by severity (🔴 Important, 🟡 Nit, 🟣 Pre-existing)
+6. Posts user's decision as audit trail comment on PR
+7. Merges on user approval — use **regular merge** (not squash)
 
 ## Security
 

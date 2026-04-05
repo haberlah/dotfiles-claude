@@ -58,15 +58,19 @@ Use the Perplexity MCP tools as the primary search and research engine. Select t
 
 Always try multiple tools before reporting failure. Run search and browsing in parallel when possible.
 
-## Auto-commit and PR workflow
+## Commit and PR workflow
 
-A Stop hook auto-commits and pushes after every response. Do NOT ask about version control for routine changes — the hook handles it.
+A Stop hook auto-commits the dotfiles-claude config repo after every response. For project repos, the hook does NOT auto-commit.
 
-### Project repos on main/master — auto PR + code review
+### Project repos — use the `claude-pr-review` skill
 
-After completing work that changes files in a project repo (not dotfiles-claude), use the `auto-pr-review` skill to create a PR, trigger Claude Code Review, and present results for approval. The skill handles commit, push to `auto/` branch, PR creation, review trigger, polling, and fallback.
+After completing work that changes files in a project repo, invoke the `claude-pr-review` skill. It asks the user to choose:
 
-The Stop hook serves as a safety net — if the skill already committed, the hook finds a clean working tree and skips the project repo.
+1. **Commit and push** — direct push to current branch
+2. **Create PR** — push to auto/ branch and open a PR
+3. **Create PR + Claude Code Review** — full review workflow (~$15-25, 5-20 min)
+
+Do NOT commit or push project repo changes outside the skill. If the user's intent is clear from their message ("push it", "create a PR", "review it"), skip the prompt and proceed.
 
 ## Google Workspace access
 
