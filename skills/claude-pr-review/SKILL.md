@@ -117,10 +117,10 @@ IN_PROGRESS=$(gh api "repos/${REPO}/commits/${AUTO_BRANCH//\//%2F}/check-runs" \
 LAST_COMMENT=$(gh api "repos/${REPO}/issues/${PR_NUMBER}/comments" \
   --jq '.[-1].body // ""' 2>/dev/null)
 
-# Guard 3: Latest commit not already reviewed
+# Guard 3: Latest commit not already reviewed (exclude the auto-tip "configured for manual reviews" comment — it has a commit_id but is not a real review)
 LATEST_SHA=$(git rev-parse HEAD)
 LATEST_REVIEW_SHA=$(gh api "repos/${REPO}/pulls/${PR_NUMBER}/reviews" \
-  --jq '[.[] | select(.user.login == "claude[bot]")] | last | .commit_id // ""' 2>/dev/null)
+  --jq '[.[] | select(.user.login == "claude[bot]") | select(.body | test("configured for manual") | not)] | last | .commit_id // ""' 2>/dev/null)
 ```
 
 **Trigger rules:**
@@ -133,9 +133,11 @@ If any guard fails, inform the user why and wait.
 **3b. Trigger exactly one review:**
 
 ```bash
-gh pr comment "$PR_NUMBER" --body "[Claude Code] @claude review once"
+gh pr comment "$PR_NUMBER" --body "@claude review once"
 TRIGGER_TIME=$(date -u +%Y-%m-%dT%H:%M:%SZ)
 ```
+
+**CRITICAL: The trigger comment must start with `@claude`.** Do NOT prefix it with `[Claude Code]` or any other text — the GitHub App's mention parser requires `@claude` at the start of the comment body. Prefixed mentions are acknowledged (👀 reaction) but silently ignored as triggers.
 
 Use `@claude review once` — not bare `@claude review`. The `once` variant prevents automatic push-triggered reviews, avoiding cascading costs.
 
@@ -248,7 +250,7 @@ Common causes:
 2. **Check before triggering.** Always run all three guards first.
 3. **Never retry on silence.** 20-min timeout → fallback. Do not re-trigger.
 4. **Use `review once`.** Never bare `@claude review` — prevents cascading costs.
-5. **Prefix automated comments** with `[Claude Code]`.
+5. **Prefix automated comments** with `[Claude Code]` — **except** the trigger comment, which must start with `@claude` (no prefix).
 6. **One decision comment per review cycle.**
 
 ## Related tools
