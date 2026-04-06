@@ -58,8 +58,8 @@
     ]
   },
   "enabledPlugins": {
-    "dbt-skills@data-engineering-skills": true,
-    "snowflake-skills@data-engineering-skills": true,
+    "dbt-skills@data-engineering-skills": false,
+    "snowflake-skills@data-engineering-skills": false,
     "github@claude-plugins-official": true,
     "playwright@claude-plugins-official": true,
     "vercel@claude-plugins-official": true,
