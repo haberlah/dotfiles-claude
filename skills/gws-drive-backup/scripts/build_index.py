@@ -61,6 +61,8 @@ for root, dirs, files in os.walk(KB_ROOT):
                         fm = yaml.safe_load(content[4:end])
                         if isinstance(fm, dict):
                             entry.update(fm)
+                            if not fm.get('google_doc_id'):
+                                print(f"  WARN: Empty provenance in {rel}")
             except Exception as e:
                 print(f"  WARN: Failed to parse frontmatter in {rel}: {e}")
 

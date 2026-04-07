@@ -54,11 +54,17 @@ echo "Scope:  $SCOPE"
 [ -n "$DRIVE_ID" ] && echo "Drive:  $DRIVE_ID"
 echo ""
 
-# List all files
-FILES_JSON=$(gws drive files list --params "{\"q\": \"${QUERY}\", \"pageSize\": 1000, \"fields\": \"files(id,name,mimeType,parents)\"${EXTRA_PARAMS}}" 2>/dev/null)
+# List all files (paginated)
+FILES_JSON=$(gws drive files list --params "{\"q\": \"${QUERY}\", \"pageSize\": 500, \"fields\": \"files(id,name,mimeType,parents),nextPageToken\"${EXTRA_PARAMS}}" \
+  --page-all --page-limit 50 --page-delay 200 2>/dev/null \
+  | jq -s '{files: [.[].files[]]}')
 TOTAL=$(echo "$FILES_JSON" | jq '.files | length')
 echo "Found $TOTAL files"
 echo ""
+
+# Initialise file manifest (maps local filenames to Drive IDs)
+MANIFEST_NDJSON="$OUTPUT_DIR/.file_manifest.ndjson"
+: > "$MANIFEST_NDJSON"
 
 # Sanitise a filename for local filesystem
 sanitise() {
@@ -82,6 +88,7 @@ echo "$FILES_JSON" | jq -c '.files[]' | while IFS= read -r file; do
       cd "$OUTPUT_DIR"
       gws drive files export --params "{\"fileId\": \"$ID\", \"mimeType\": \"text/markdown\"}" >/dev/null 2>&1
       [ -f download.bin ] && mv download.bin "${SAFE_NAME}.md"
+      echo "{\"local\":\"${SAFE_NAME}.md\",\"id\":\"$ID\"}" >> "$MANIFEST_NDJSON"
       echo "  → ${SAFE_NAME}.md"
 
       # Extract base64 images from markdown to separate files + rewrite paths
@@ -108,6 +115,7 @@ echo "$FILES_JSON" | jq -c '.files[]' | while IFS= read -r file; do
       gws drive files export --params "{\"fileId\": \"$ID\", \"mimeType\": \"application/vnd.openxmlformats-officedocument.spreadsheetml.sheet\"}" >/dev/null 2>&1
       local_file=$(ls -t download.* 2>/dev/null | head -1)
       [ -n "$local_file" ] && mv "$local_file" "${SHEET_DIR}/${SAFE_NAME}.xlsx"
+      echo "{\"local\":\"${SAFE_NAME}\",\"id\":\"$ID\"}" >> "$MANIFEST_NDJSON"
       echo "  → ${SAFE_NAME}/${SAFE_NAME}.xlsx"
 
       # Each tab as CSV
@@ -130,6 +138,7 @@ echo "$FILES_JSON" | jq -c '.files[]' | while IFS= read -r file; do
       gws drive files export --params "{\"fileId\": \"$ID\", \"mimeType\": \"application/vnd.openxmlformats-officedocument.presentationml.presentation\"}" >/dev/null 2>&1
       local_file=$(ls -t download.* 2>/dev/null | head -1)
       [ -n "$local_file" ] && mv "$local_file" "${SAFE_NAME}.pptx"
+      echo "{\"local\":\"${SAFE_NAME}.pptx\",\"id\":\"$ID\"}" >> "$MANIFEST_NDJSON"
       echo "  → ${SAFE_NAME}.pptx"
       ;;
 
@@ -171,11 +180,18 @@ echo "$FILES_JSON" | jq -c '.files[]' | while IFS= read -r file; do
           EXT="${local_file##*.}"
           mv "$local_file" "${SAFE_NAME}.${EXT}"
         fi
+        echo "{\"local\":\"${SAFE_NAME}\",\"id\":\"$ID\"}" >> "$MANIFEST_NDJSON"
         echo "  → ${SAFE_NAME}"
       fi
       ;;
   esac
 done
+
+# Merge manifest NDJSON into final JSON array
+if [ -s "$MANIFEST_NDJSON" ]; then
+  jq -s '.' "$MANIFEST_NDJSON" > "$OUTPUT_DIR/file_manifest.json"
+fi
+rm -f "$MANIFEST_NDJSON"
 
 echo ""
 echo "=== Backup complete ==="

@@ -40,9 +40,11 @@ echo ""
 
 # --- Phase 0: Export Drive metadata ---
 echo "--- Phase 0: Export Drive metadata ---"
-gws drive files list --params '{"q": "trashed = false", "includeItemsFromAllDrives": true, "supportsAllDrives": true, "corpora": "allDrives", "pageSize": 500, "fields": "files(id,name,mimeType,modifiedTime,createdTime,lastModifyingUser,webViewLink,parents,size)"}' 2>/dev/null > "$BACKUP_DIR/drive_metadata.json"
+gws drive files list --params '{"q": "trashed = false", "includeItemsFromAllDrives": true, "supportsAllDrives": true, "corpora": "allDrives", "pageSize": 500, "fields": "files(id,name,mimeType,modifiedTime,createdTime,lastModifyingUser,webViewLink,parents,size),nextPageToken"}' \
+  --page-all --page-limit 50 --page-delay 200 2>/dev/null \
+  | jq -s '{files: [.[].files[]]}' > "$BACKUP_DIR/drive_metadata.json"
 META_COUNT=$(jq '.files | length' "$BACKUP_DIR/drive_metadata.json")
-echo "Exported metadata for $META_COUNT files"
+echo "Exported metadata for $META_COUNT files (paginated)"
 echo ""
 
 # --- Phase 1: Download from Drive ---

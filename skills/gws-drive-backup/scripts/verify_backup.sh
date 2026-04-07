@@ -73,5 +73,27 @@ TOTAL=$(find "$DIR" -type f -not -name '.DS_Store' | wc -l | tr -d ' ')
 SIZE=$(du -sh "$DIR" | awk '{print $1}')
 FOLDERS=$(find "$DIR" -type d | wc -l | tr -d ' ')
 echo "Total: $TOTAL files, $FOLDERS folders, $SIZE"
+# Check metadata completeness
+echo ""
+echo "--- Metadata completeness ---"
+META_FILE="$DIR/drive_metadata.json"
+if [ -f "$META_FILE" ]; then
+  META_COUNT=$(jq '.files | length' "$META_FILE")
+  echo "  Metadata entries: $META_COUNT"
+else
+  echo "  WARNING: No drive_metadata.json found"
+fi
+
+# Check file manifests
+echo ""
+echo "--- File manifests ---"
+MANIFEST_COUNT=$(find "$DIR" -name "file_manifest.json" -type f 2>/dev/null | wc -l | tr -d ' ')
+if [ "$MANIFEST_COUNT" -gt 0 ]; then
+  MANIFEST_ENTRIES=$(find "$DIR" -name "file_manifest.json" -exec cat {} + | jq -s '[.[][]] | length')
+  echo "  Found $MANIFEST_COUNT manifests with $MANIFEST_ENTRIES entries"
+else
+  echo "  WARNING: No file_manifest.json found — re-run Phase 1 to generate manifests"
+fi
+
 echo ""
 echo "=== Verification complete ==="
