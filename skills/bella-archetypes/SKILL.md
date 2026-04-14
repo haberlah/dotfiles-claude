@@ -4,17 +4,18 @@ description: >
   Run BellaAssist co-design archetypes as virtual feedback agents for brand evaluation,
   pricing debates, feature prioritisation, and messaging testing. This skill should be used
   when the user mentions "archetypes", "virtual panel", "brand feedback", "archetype debate",
-  "what would the SCs think", "what would participants think", "run the panel", "archetype
-  feedback", or wants feedback on BellaAssist brand, product, or positioning from simulated
-  user perspectives. Supports SC panel (4 B2B archetypes), Participant panel (4 end-user
-  archetypes), full 8-voice panel, or specific archetype pairs and named debate presets.
+  "what would the SCs think", "what would participants think", "what would Bella think",
+  "run the panel", "archetype feedback", "brand coherence", or wants feedback on BellaAssist
+  brand, product, or positioning from simulated user perspectives. Supports SC panel (4 B2B
+  archetypes), Participant panel (4 end-user archetypes), Org panel (1 brand-identity
+  archetype), full 9-voice panel, or specific archetype pairs and named debate presets.
 ---
 
 # BellaAssist Archetype Panel
 
-Run 8 research-grounded archetypes as virtual feedback agents. Built from 43+ co-design sessions across 18 individuals (~700K words of transcripts).
+Run 9 research-grounded archetypes as virtual feedback agents. Built from 43+ co-design sessions across 18 individuals (~700K words of transcripts) plus CBIM v3 brand identity.
 
-Two complementary panels evaluate from different market perspectives:
+Three complementary panels evaluate from different perspectives:
 
 | ID | Name | Panel | One-liner |
 |----|------|-------|-----------|
@@ -26,6 +27,7 @@ Two complementary panels evaluate from different market perspectives:
 | P-02 | The Supported Participant | Participant | Willing but overwhelmed adult relying on SC for navigation |
 | P-03 | The Proactive Parent-Advocate | Participant | High-agency parent treating the NDIS as a battleground |
 | P-04 | The Anchoring Carer | Participant | Present-focused carer managing burden, not fighting systems |
+| B-01 | The Mission-Driven Builder | Org | Bella Slainte's brand identity voice — evaluates coherence against CBIM v3 |
 
 ## Panel Selection
 
@@ -33,7 +35,9 @@ Two complementary panels evaluate from different market perspectives:
 |-----------------|-------------------|
 | B2B positioning, pricing, enterprise messaging | SC Panel |
 | Consumer messaging, accessibility, onboarding UX | Participant Panel |
-| Comprehensive brand evaluation, launch readiness | Full Panel (8 voices) |
+| Brand coherence, identity alignment, CBIM consistency | Org Panel |
+| Comprehensive brand evaluation, launch readiness | Full Panel (9 voices) |
+| Brand vs market reception testing | B-01 + SC or P archetype |
 | Specific tension testing (trust vs efficiency, etc.) | Named pair |
 
 ## Invocation
@@ -43,11 +47,12 @@ The skill accepts optional arguments to select the panel:
 - **No argument** or `interactive` - Ask the user which panel and what stimulus
 - `sc` - SC Panel (4 voices)
 - `p` or `participant` - Participant Panel (4 voices)
-- `all` or `full` - Full 8-voice panel
-- Archetype IDs (e.g., `sc01 sc02`) - Specific archetypes only
-- Named pair (e.g., `trust-vs-efficiency`, `power-vs-simplicity`) - Pre-defined strategic pair
+- `org` or `bella` - Org Panel (1 voice — brand coherence)
+- `all` or `full` - Full 9-voice panel
+- Archetype IDs (e.g., `sc01 sc02`, `b01 p01`) - Specific archetypes only
+- Named pair (e.g., `trust-vs-efficiency`, `brand-vs-trust`) - Pre-defined strategic pair
 
-Named pairs: `trust-vs-efficiency`, `power-vs-simplicity`, `fighter-vs-maintainer`, `solo-vs-enterprise`, `craft-vs-conviction`, `cross-advocacy`, `cross-high-agency`.
+Named pairs: `trust-vs-efficiency`, `power-vs-simplicity`, `fighter-vs-maintainer`, `solo-vs-enterprise`, `craft-vs-conviction`, `cross-advocacy`, `cross-high-agency`, `brand-vs-trust`, `brand-vs-power-user`, `brand-vs-burden`, `brand-vs-efficiency`.
 
 For pair definitions and divergence interpretation, read `references/panel_guide.md`.
 
@@ -65,7 +70,8 @@ Read only the relevant agent card files from the `agents/` directory:
 
 - SC Panel: read all files in `agents/sc/`
 - Participant Panel: read all files in `agents/p/`
-- Full Panel: read all files in both directories
+- Org Panel: read `agents/b/b01_mission_driven_builder.md`
+- Full Panel: read all files in `agents/sc/`, `agents/p/`, and `agents/b/`
 - Specific IDs: read only the matching files
 - Named pair: resolve to archetype IDs via `references/panel_guide.md`, then read those files
 
@@ -88,7 +94,7 @@ Use the archetype's characteristic language and evaluation lenses.]
 
 Ground each response in the archetype's specific concerns — do not produce generic feedback. Each voice should reference different aspects of the stimulus and evaluate through its distinct lens.
 
-For full 8-voice panels: consider spawning two parallel agents (one for SC panel, one for P panel) to avoid voice contamination and reduce latency. Merge outputs before synthesis.
+For full 9-voice panels: consider spawning parallel agents (SC panel, P panel, Org panel) to avoid voice contamination and reduce latency. Merge outputs before synthesis. B-01 should always speak last in the synthesis — brand coherence evaluation is most useful after market reception voices have spoken.
 
 ### Step 4: Synthesise
 
@@ -112,6 +118,7 @@ After all voices have spoken, provide a structured synthesis:
 ### Agent cards
 - **`agents/sc/sc01_growth_pragmatist.md`** through **`agents/sc/sc04_discerning_craftsperson.md`**
 - **`agents/p/p01_empowered_navigator.md`** through **`agents/p/p04_anchoring_carer.md`**
+- **`agents/b/b01_mission_driven_builder.md`** — Org panel (brand identity voice, sourced from CBIM v3)
 
 Each agent card is a self-contained system prompt. Read the full card before generating that archetype's voice. Do not summarise or paraphrase the agent card — use it as the complete persona instruction set.
 

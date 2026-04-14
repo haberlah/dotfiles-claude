@@ -6,7 +6,8 @@
 |-------|------------|-------------|
 | **SC Panel** | SC-01 through SC-04 | B2B positioning, enterprise messaging, pricing models, SC-facing features, go-to-market strategy |
 | **Participant Panel** | P-01 through P-04 | Consumer messaging, accessibility evaluation, onboarding UX, participant-facing features, Easy Read content |
-| **Full Panel** | All 8 | Comprehensive brand evaluation, cross-market alignment, launch readiness |
+| **Org Panel** | B-01 | Brand coherence, CBIM alignment, identity consistency, positioning drift detection |
+| **Full Panel** | All 9 | Comprehensive brand evaluation, cross-market alignment, launch readiness |
 
 ## Strategic Pairs
 
@@ -21,6 +22,21 @@ For focused 2-voice debates, use these pre-defined pairings. Each tests a specif
 | **craft-vs-conviction** | SC-04 (Discerning Craftsperson) + SC-02 (Evidence-Driven Advocate) | Whether the quality-check and evidence-protection lenses align. SC-04 asks "Is this better than what I built?" SC-02 asks "Will this protect my participants?" |
 | **cross-advocacy** | SC-02 (Evidence-Driven Advocate) + P-03 (Proactive Parent-Advocate) | Both advocacy-driven from different sides — professional SC vs. family member. Do they see the same value in the product? |
 | **cross-high-agency** | SC-01 (Growth Pragmatist) + P-01 (Empowered Navigator) | Both self-directed and tech-capable. SC-01 is the buyer; P-01 is the end user. Does the product work for both? |
+| **brand-vs-trust** | B-01 (Mission-Driven Builder) + SC-02 (Evidence-Driven Advocate) | Does the brand identity land with the most trust-sensitive SC? B-01 checks coherence; SC-02 checks whether they'd trust it with their participants. |
+| **brand-vs-power-user** | B-01 (Mission-Driven Builder) + P-01 (Empowered Navigator) | Does the brand land with the most capable participant? B-01 checks identity; P-01 rejects patronising — does Bella's voice thread the needle? |
+| **brand-vs-burden** | B-01 (Mission-Driven Builder) + P-04 (Anchoring Carer) | Does the brand land with the hardest-to-serve user? B-01 checks mission alignment; P-04 checks burden. If both approve, concept is both coherent and humane. |
+| **brand-vs-efficiency** | B-01 (Mission-Driven Builder) + SC-01 (Growth Pragmatist) | Does mission-driven positioning appeal to the ROI-focused buyer? B-01 checks values; SC-01 checks payoff. |
+
+## Org Panel Divergence Signals
+
+When B-01 is included alongside SC or P panels:
+
+- **B-01 approves, SC/P disapprove** — Brand-coherent but not market-ready. The concept is true to the CBIM but doesn't land with users. Adjust messaging without abandoning identity.
+- **B-01 disapproves, SC/P approve** — Market-appealing but brand-drifting. The concept resonates with users but contradicts the brand identity. Investigate which CBIM element is being violated and whether the identity or the concept should flex.
+- **B-01 and SC/P both approve** — Strong signal: brand-coherent AND market-ready. This is the target state.
+- **B-01 and SC/P both disapprove** — Concept fails on all dimensions. Rework from first principles.
+
+Note: B-01 evaluates COHERENCE, not RECEPTION. SC/P archetypes evaluate reception. When they diverge, it's a strategic decision — not an error.
 
 ## Divergence Signal Framework
 
@@ -59,6 +75,9 @@ These archetypes carry different confidence levels based on data depth:
 - P-01 (Kevin: 1 person, 3 sessions — deep but narrow)
 - P-02 (Kylie: 2 sessions; Melanie: 1 session)
 - P-04 (Caroline: 2 sessions; Max: 1 session — widest internal diversity)
+
+### Org archetype (different basis)
+- B-01 (Source: CBIM v3, CEO direction, team brand review — high confidence for brand coherence, not applicable for market reception)
 
 ### Known gaps
 - No Indigenous SC or participant representation
