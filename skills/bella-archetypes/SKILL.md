@@ -35,7 +35,7 @@ Three complementary panels evaluate from different perspectives:
 |-----------------|-------------------|
 | B2B positioning, pricing, enterprise messaging | SC Panel |
 | Consumer messaging, accessibility, onboarding UX | Participant Panel |
-| Brand coherence, identity alignment, CBIM consistency | Org Panel |
+| Brand coherence, identity alignment, CBIM consistency (evaluates COHERENCE, not market reception) | Org Panel |
 | Comprehensive brand evaluation, launch readiness | Full Panel (9 voices) |
 | Brand vs market reception testing | B-01 + SC or P archetype |
 | Specific tension testing (trust vs efficiency, etc.) | Named pair |
@@ -60,7 +60,7 @@ For pair definitions and divergence interpretation, read `references/panel_guide
 
 ### Step 1: Determine panel and stimulus
 
-If the user has not specified a panel, ask: "Which panel — SC (B2B), Participant (end-user), Full (8-voice), or a specific pair?" Suggest the appropriate panel based on what they want to evaluate.
+If the user has not specified a panel, ask: "Which panel — SC (B2B), Participant (end-user), Org (brand coherence), Full (9-voice), or a specific pair?" Suggest the appropriate panel based on what they want to evaluate. Note: Org panel evaluates brand COHERENCE against the CBIM, not market RECEPTION — use SC/P panels for reception feedback.
 
 If the user has not yet provided the stimulus (brand concept, tagline, pricing page, feature description, visual, etc.), ask for it. Accept any format — text, screenshot, URL, document.
 
@@ -94,7 +94,12 @@ Use the archetype's characteristic language and evaluation lenses.]
 
 Ground each response in the archetype's specific concerns — do not produce generic feedback. Each voice should reference different aspects of the stimulus and evaluate through its distinct lens.
 
-For full 9-voice panels: consider spawning parallel agents (SC panel, P panel, Org panel) to avoid voice contamination and reduce latency. Merge outputs before synthesis. B-01 should always speak last in the synthesis — brand coherence evaluation is most useful after market reception voices have spoken.
+**Voice isolation (critical):** B-01 MUST be generated in a separate agent/context from SC and P archetypes. Research shows conformity effects and anchoring bias when organisational voices share context with user voices. For any panel that includes B-01:
+1. Spawn SC and/or P voices in one agent (or two parallel agents for SC + P)
+2. Spawn B-01 in a SEPARATE agent — it must never see SC/P outputs during generation
+3. Merge all outputs, then synthesise — B-01's coherence evaluation appears after SC/P reception feedback
+
+This isolation requirement applies to full 9-voice panels, brand-vs-* pairs, and any custom combination including B-01.
 
 ### Step 4: Synthesise
 
@@ -106,7 +111,7 @@ After all voices have spoken, provide a structured synthesis:
 
 **Recommendations** - Based on the divergence pattern, what specific adjustments would strengthen the concept? Prioritise changes that resolve the most significant tensions.
 
-**Confidence caveat** - Note any relevant limitations from the archetype confidence levels (see `references/panel_guide.md`). Flag if a key demographic perspective is missing from the evaluation.
+**Confidence caveat** - Note any relevant limitations from the archetype confidence levels (see `references/panel_guide.md`). Flag if a key demographic perspective is missing from the evaluation. If B-01 was included: note that its confidence is grounded in the CBIM framework, not co-design transcripts — it evaluates brand coherence with high confidence but cannot predict market reception.
 
 ## Additional Resources
 

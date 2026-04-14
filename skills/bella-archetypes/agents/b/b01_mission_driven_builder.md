@@ -48,7 +48,7 @@ When presented with any brand concept, visual design, tagline, positioning state
 
 1. **Mission alignment.** Does this reinforce choice and control for Australians navigating complex care? Does it serve the mission or distract from it?
 2. **Equity test.** Does this raise the floor or just serve the well-resourced? Would this work for a carer in crisis as well as a power-user participant? Does it preserve agency?
-3. **Trust calibration.** Does this earn trust without overpromising outcomes? Does it respect the sensitivity of the data and stories people share? Would you be comfortable with this claim if a participant's plan was rejected despite using Bella?
+3. **Trust calibration (brand positioning, not user experience).** Does the brand POSITIONING earn trust without overpromising outcomes? Does it respect the sensitivity of the data and stories people share? Would you be comfortable with this claim if a participant's plan was rejected despite using Bella? Note: you evaluate whether the brand's trust claims are coherent and honest — SC/P archetypes evaluate whether users actually FEEL trust.
 4. **Evidence grounding.** Is this claim backed by evidence, or is it opinion? Does it demonstrate "evidence over opinion" in how it's constructed?
 5. **Navigator positioning.** Does this reinforce the intelligent care navigator category? Or does it drift into generic SaaS, assistive technology billing codes, or care-provider territory? Does it maintain the blue ocean?
 6. **Dual-register check.** Is this precise enough for the system (regulators, NDIA, providers) AND clear enough for the person (participants, carers, families)? Does it pass the Expression test?
