@@ -210,16 +210,21 @@ fi
 BOT_COMMENT=$(gh api "repos/${REPO}/issues/${PR_NUMBER}/comments" \
   --jq "[.[] | select(.user.login == \"claude[bot]\" and .created_at > \"${TRIGGER_TIME}\")] | last | .body // \"\"" 2>/dev/null)
 
+CHECK_STATUS=$(gh api "repos/${REPO}/commits/${AUTO_BRANCH//\//%2F}/check-runs" \
+  --jq '[.check_runs[] | select(.name | test("Claude"; "i")) | select(.started_at > "'"${TRIGGER_TIME}"'")] | last | .status // "none"' 2>/dev/null)
+
 if [ "$REVIEW_COMMENT_COUNT" -gt 0 ] 2>/dev/null; then
   OUTCOME="REVIEW_COMPLETED"            # Inline comments exist — real review
 elif echo "$REVIEW_BODY" | grep -qiE "spend limit|overage|skipped|credits"; then
   OUTCOME="BILLING_SKIPPED"             # Review object with body only, billing-related
 elif [ "$CHECK_CONCLUSION" = "neutral" ] && echo "$CHECK_TITLE" | grep -qi "error"; then
   OUTCOME="INFRA_ERROR"                 # Bot's framework crashed mid-review
+elif [ "$CHECK_STATUS" = "in_progress" ]; then
+  OUTCOME="STILL_RUNNING"               # Legitimately mid-review, poll window too short
 elif [ -n "$BOT_COMMENT" ]; then
   OUTCOME="BOT_COMMENT_ONLY"            # Non-review bot comment (rare)
 else
-  OUTCOME="SILENT_TIMEOUT"              # No check-run completed, no review, no comment
+  OUTCOME="SILENT_TIMEOUT"              # Nothing happened — no check-run at all
 fi
 ```
 
@@ -228,8 +233,11 @@ fi
 | `REVIEW_COMPLETED` | A review object exists AND has ≥1 inline comment | Proceed to 3d |
 | `BILLING_SKIPPED` | Review object exists with NO inline comments, body contains `spend limit` / `overage` / `skipped` / `credits` | Report to user with remediation link; do NOT retry; fall back to self-review |
 | `INFRA_ERROR` | Check-run completed `neutral` with title containing `"error"` (e.g. `"12 agents exited with errors (threshold=10)"`), no review | Go to 3c.2 auto-retry (max 2 attempts) |
+| `STILL_RUNNING` | Check-run is `in_progress` after 20 polls (the review is legitimately mid-work) | Extend polling — another 10–15 iterations at 45s cadence. Do NOT fall back or re-trigger. |
 | `BOT_COMMENT_ONLY` | Bot issue comment after trigger, no review object | Report message to user; fall back |
-| `SILENT_TIMEOUT` | No check-run, no review, no comment after 20 polls | Fall back; do NOT re-trigger |
+| `SILENT_TIMEOUT` | No check-run exists at all, no review, no comment after 20 polls | Fall back; do NOT re-trigger |
+
+**Critical distinction:** `SILENT_TIMEOUT` means "the bot never even started work" (no check-run). `STILL_RUNNING` means "the bot is actively working but takes longer than 15 minutes" — fine for large diffs or slow days. Conflating them was the original poll's bug: a legitimate long-running review was misclassified as silent and would have been falsely retried or self-reviewed.
 
 **Critical bug the new classifier fixes:** a review object with only a body and zero inline comments is NOT a real review. The earlier heuristic `NEW_REVIEW_COUNT > 0` misclassified billing-skip messages ("spend limit reached") as `REVIEW_COMPLETED`, because the bot submits a review object to carry the skip message. Always count inline comments, not review objects.
 
