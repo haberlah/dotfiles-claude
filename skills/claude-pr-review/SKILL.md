@@ -183,6 +183,66 @@ for i in $(seq 1 20); do
 done
 ```
 
+**3c.1. Classify outcome — distinguish review vs infrastructure error vs silent timeout:**
+
+After the poll exits, the check-run may be in one of four states. Treating them all as "done" is a mistake that silently hides failures and wastes review budget. Classify explicitly:
+
+```bash
+CHECK_CONCLUSION=$(gh api "repos/${REPO}/commits/${AUTO_BRANCH//\//%2F}/check-runs" \
+  --jq '[.check_runs[] | select(.name | test("Claude"; "i"))] | last | .conclusion // "unknown"' 2>/dev/null)
+CHECK_TITLE=$(gh api "repos/${REPO}/commits/${AUTO_BRANCH//\//%2F}/check-runs" \
+  --jq '[.check_runs[] | select(.name | test("Claude"; "i"))] | last | .output.title // ""' 2>/dev/null)
+NEW_REVIEW_COUNT=$(gh api "repos/${REPO}/pulls/${PR_NUMBER}/reviews" \
+  --jq "[.[] | select(.user.login == \"claude[bot]\" and .submitted_at > \"${TRIGGER_TIME}\")] | length" 2>/dev/null)
+
+if [ "$NEW_REVIEW_COUNT" -gt 0 ]; then
+  OUTCOME="REVIEW_COMPLETED"
+elif [ "$CHECK_CONCLUSION" = "neutral" ] && echo "$CHECK_TITLE" | grep -qi "error"; then
+  OUTCOME="INFRA_ERROR"
+elif [ -n "$BOT_COMMENT" ]; then
+  OUTCOME="BOT_COMMENT_ONLY"  # billing/quota/etc, no review posted
+else
+  OUTCOME="SILENT_TIMEOUT"
+fi
+```
+
+| Outcome | What it means | Next step |
+|---------|---------------|-----------|
+| `REVIEW_COMPLETED` | A review object was submitted | Proceed to 3d |
+| `INFRA_ERROR` | Check-run completed `neutral` with title containing "error" (e.g. `"12 agents exited with errors (threshold=10)"`), no review posted | Go to 3c.2 auto-retry |
+| `BOT_COMMENT_ONLY` | Bot posted a comment but no review (billing/quota/etc.) | Report message to user, fall back to self-review |
+| `SILENT_TIMEOUT` | 20 polls elapsed, check-run never transitioned to completed | Fall back to self-review per the "Fallback" section; do NOT re-trigger |
+
+**3c.2. Auto-retry on infrastructure error:**
+
+When `OUTCOME=INFRA_ERROR`, the failure is upstream (not a findings result). The check-run `output.summary` typically contains a truncated Python traceback reporting N sub-agents crashed past the threshold. The bot itself failed — the PR has not been reviewed. Retry with care:
+
+1. **Persist the failure for later diagnostic.** GitHub truncates `output.summary` at ~500 chars and `output.text` is usually `null`, so saving the full check-run metadata is the only way to have a record:
+   ```bash
+   mkdir -p ~/.claude/logs/pr-review-infra-errors
+   gh api "repos/${REPO}/commits/${AUTO_BRANCH//\//%2F}/check-runs" \
+     --jq '[.check_runs[] | select(.name | test("Claude"; "i"))] | last' \
+     > "$HOME/.claude/logs/pr-review-infra-errors/$(date +%Y%m%d-%H%M%S)-${REPO##*/}-pr${PR_NUMBER}-attempt${ATTEMPT:-1}.json"
+   ```
+   Retain `html_url` from the JSON — it links to the browser-rendered log with the full traceback that the API hides.
+
+2. **Wait at least 5 minutes** before retriggering. Back-to-back triggers against the same upstream hit the same rate-limit / worker-pool wall.
+   ```bash
+   sleep 300
+   ```
+
+3. **Re-run step 3a guards.** A failed check-run doesn't count as a review, so `LATEST_REVIEW_SHA != LATEST_SHA` still holds. Guard 1 (in_progress) may need to wait for the old check to release.
+
+4. **Re-trigger:** `gh pr comment "$PR_NUMBER" --body "@claude review once"`.
+
+5. **Poll (step 3c) and classify (step 3c.1) again.**
+
+6. **Retry cap = 2 attempts total.** If `OUTCOME=INFRA_ERROR` after the second attempt, stop. Tell the user:
+
+   > "Claude Code Review hit an infrastructure error on both attempts. Full check-run metadata saved to `~/.claude/logs/pr-review-infra-errors/`. The stderr traceback at [html_url] is the canonical source. Falling back to self-review of the diff."
+
+   Then proceed as per the "Fallback" section.
+
 **3d. Retrieve and present findings:**
 
 ```bash
@@ -240,30 +300,40 @@ git checkout main && git pull origin main
 
 Use `--merge` (not `--squash`) to keep local and remote aligned.
 
-## Fallback — review timeout
+## Fallback — self-review
 
-If the Claude GitHub App doesn't respond within 20 minutes:
+Enter fallback when any of the following holds:
+
+- `OUTCOME=SILENT_TIMEOUT` from step 3c.1 — 20 polls elapsed, check-run never transitioned to `completed`
+- `OUTCOME=BOT_COMMENT_ONLY` — bot posted a comment (typically billing/quota) but no review object
+- `OUTCOME=INFRA_ERROR` persists after the 2-attempt retry cap in step 3c.2
+
+Protocol:
 
 1. Read the diff: `gh pr diff "$PR_NUMBER"`
-2. Provide your own assessment (clearly labelled as self-review)
-3. Post a PR comment: `"[Claude Code] Official review timed out after 20 minutes. Self-review provided in conversation."`
-4. **Do NOT re-trigger** — the App may still be processing
-5. Still wait for user approval before merging
+2. Provide your own assessment (clearly labelled as self-review in the conversation)
+3. Post a PR comment explaining the fallback. Use the phrasing matched to the outcome:
+   - `SILENT_TIMEOUT`: `"[Claude Code] Official review did not complete within 20 minutes. Self-review provided in conversation."`
+   - `BOT_COMMENT_ONLY`: `"[Claude Code] Review did not run (bot reported: <summary>). Self-review provided in conversation."`
+   - `INFRA_ERROR` after retries: `"[Claude Code] Review hit infrastructure errors on 2 attempts. Metadata saved locally. Self-review provided in conversation."`
+4. **Do NOT re-trigger** beyond what step 3c.2 already attempted — stops cascading cost.
+5. Still wait for user approval before merging.
 
-Common causes:
-- Overage spend limit exhausted
-- Code Review not enabled in org settings
-- No `CLAUDE.md` in repo root
-- Org has Zero Data Retention enabled (incompatible)
+Common causes (per outcome):
+
+- `SILENT_TIMEOUT` — Code Review disabled in org settings, no `CLAUDE.md` in repo root, Zero Data Retention enabled (incompatible), or bot simply not installed on the repo's org.
+- `BOT_COMMENT_ONLY` — overage spend limit exhausted, billing suspended, or org-level policy blocking the review.
+- `INFRA_ERROR` — upstream Anthropic issue: rate-limit cliff, shared sub-agent worker pool exhaustion, cache cascade. Usually transient; the retry in 3c.2 handles single-episode flakes. Persistent errors warrant an incident report to Anthropic using the saved metadata in `~/.claude/logs/pr-review-infra-errors/`.
 
 ## Anti-spam rules
 
-1. **One trigger per push.** Never post another `@claude review once` until a review arrives OR new commits are pushed.
+1. **One trigger per push.** Never post another `@claude review once` until a review arrives, the current attempt is classified as `INFRA_ERROR`, OR new commits are pushed.
 2. **Check before triggering.** Always run all three guards first.
-3. **Never retry on silence.** 20-min timeout → fallback. Do not re-trigger.
+3. **Retry only on classified infra error.** `SILENT_TIMEOUT` → fallback, do not re-trigger. `INFRA_ERROR` → up to 2 retries with a 5-minute gap between attempts per step 3c.2, then fallback. Never re-trigger on silence alone.
 4. **Use `review once`.** Never bare `@claude review` — prevents cascading costs.
 5. **Prefix automated comments** with `[Claude Code]` — **except** the trigger comment, which must start with `@claude` (no prefix).
 6. **One decision comment per review cycle.**
+7. **Space reviews on the same repo.** If any prior review (on any PR in this repo) completed within the last 5 minutes, wait out the remainder before triggering — see the concurrency note at the top of Option 3.
 
 ## Related tools
 
