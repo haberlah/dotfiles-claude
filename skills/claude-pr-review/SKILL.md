@@ -153,13 +153,18 @@ TRIGGER_TIME=$(date -u +%Y-%m-%dT%H:%M:%SZ)
 
 Use `@claude review once` — not bare `@claude review`. The `once` variant prevents automatic push-triggered reviews, avoiding cascading costs.
 
-**3c. Wait for the review (patient polling):**
+**3c. Wait for the review (patient polling with progress detection):**
 
-Reviews take **5-20 minutes**. Poll check runs every 60 seconds, max 20 attempts:
+Reviews take **5-20 minutes**. Poll check runs every 45 seconds, max 30 attempts (~22 min total). Track progress signals each iteration so a stalled-but-`in_progress` bot doesn't hide behind the same coarse "still running" status forever:
 
 ```bash
-for i in $(seq 1 20); do
-  sleep 60
+PREV_TITLE=""
+PREV_SUMMARY_LEN=0
+LAST_PROGRESS_AT=$(date -u +%s)
+PROGRESS_STALL_CAP_S=$((15 * 60))  # If no progress signal changes for 15 min inside in_progress, flag stall
+
+for i in $(seq 1 30); do
+  sleep 45
 
   # Primary: check for completed review check run
   CHECK=$(gh api "repos/${REPO}/commits/${AUTO_BRANCH//\//%2F}/check-runs" \
@@ -180,8 +185,35 @@ for i in $(seq 1 20); do
   if [ -n "$BOT_COMMENT" ] && [ "$BOT_COMMENT" != "" ]; then
     break  # Bot responded (possibly billing error)
   fi
+
+  # Progress detection: the bot updates output.title and output.summary as
+  # sub-agents finish. If either changes since last poll, the bot is making
+  # forward progress — reset the stall timer. If neither has changed for
+  # PROGRESS_STALL_CAP_S seconds, treat as a stall (classifier upgrades to
+  # INFRA_ERROR so the retry path kicks in even without a conclusion flip).
+  CUR_TITLE=$(gh api "repos/${REPO}/commits/${AUTO_BRANCH//\//%2F}/check-runs" \
+    --jq '[.check_runs[] | select(.name | test("Claude"; "i")) | select(.started_at > "'"${TRIGGER_TIME}"'")] | last | .output.title // ""' 2>/dev/null)
+  CUR_SUMMARY_LEN=$(gh api "repos/${REPO}/commits/${AUTO_BRANCH//\//%2F}/check-runs" \
+    --jq '[.check_runs[] | select(.name | test("Claude"; "i")) | select(.started_at > "'"${TRIGGER_TIME}"'")] | last | (.output.summary // "") | length' 2>/dev/null)
+
+  if [ "$CUR_TITLE" != "$PREV_TITLE" ] || [ "${CUR_SUMMARY_LEN:-0}" -gt "$PREV_SUMMARY_LEN" ]; then
+    LAST_PROGRESS_AT=$(date -u +%s)
+    PREV_TITLE="$CUR_TITLE"
+    PREV_SUMMARY_LEN="${CUR_SUMMARY_LEN:-0}"
+    echo "[poll $i] progress: title=\"$CUR_TITLE\" summary_chars=$PREV_SUMMARY_LEN"
+  fi
+
+  NOW_S=$(date -u +%s)
+  STALL_S=$((NOW_S - LAST_PROGRESS_AT))
+  if [ "$STALL_S" -gt "$PROGRESS_STALL_CAP_S" ]; then
+    echo "[poll $i] STALL detected — no output.title/summary change for ${STALL_S}s while in_progress"
+    STALLED=1
+    break
+  fi
 done
 ```
+
+The `STALLED=1` flag is picked up by the classifier in step 3c.1 and upgraded to `INFRA_ERROR` even without a `conclusion` flip, so the auto-retry path in 3c.2 engages. Without this check, a frozen-but-`in_progress` bot would keep poll status at `pending` indefinitely, falling through to `SILENT_TIMEOUT` or hitting the hard poll cap without useful remediation.
 
 **3c.1. Classify outcome — distinguish review vs billing skip vs infra error vs silent timeout:**
 
@@ -219,6 +251,8 @@ elif echo "$REVIEW_BODY" | grep -qiE "spend limit|overage|skipped|credits"; then
   OUTCOME="BILLING_SKIPPED"             # Review object with body only, billing-related
 elif [ "$CHECK_CONCLUSION" = "neutral" ] && echo "$CHECK_TITLE" | grep -qi "error"; then
   OUTCOME="INFRA_ERROR"                 # Bot's framework crashed mid-review
+elif [ "${STALLED:-0}" = "1" ]; then
+  OUTCOME="INFRA_ERROR"                 # Progress signals frozen inside in_progress — stall (step 3c)
 elif [ "$CHECK_STATUS" = "in_progress" ]; then
   OUTCOME="STILL_RUNNING"               # Legitimately mid-review, poll window too short
 elif [ -n "$BOT_COMMENT" ]; then
