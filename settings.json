@@ -65,7 +65,6 @@
     "slack@claude-plugins-official": true
   },
   "alwaysThinkingEnabled": true,
-  "effortLevel": "high",
   "showTurnDuration": true,
   "teammateMode": "tmux"
 }
