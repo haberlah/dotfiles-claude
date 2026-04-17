@@ -104,6 +104,18 @@ Report the PR URL. Done (unless user wants to continue to option 3).
 
 Execute option 2 first (push + create PR), then continue:
 
+**Concurrency awareness:** The bot's multi-agent framework shares compute across all Claude Code Reviews in the same org. Back-to-back triggers (e.g. multiple PRs plus review/fix cycles within ~30 minutes) can exhaust the shared worker pool, causing sub-agents to error in clusters (see 3c.1 below). If a previous review on ANY PR in the same repo completed within the last 5 minutes, wait out the remainder before triggering:
+
+```bash
+LAST_REVIEW_COMPLETED_AT=$(gh api "repos/${REPO}/commits?per_page=20" \
+  --jq '[.[] | .sha] | .[]' | while read sha; do
+    gh api "repos/${REPO}/commits/${sha}/check-runs" \
+      --jq '.check_runs[] | select(.name | test("Claude"; "i") and .status == "completed") | .completed_at'
+  done | sort -r | head -1)
+```
+
+If non-empty and within 5 minutes of now, `sleep` the remainder.
+
 **3a. Guard checks — ALL must pass before triggering:**
 
 ```bash
