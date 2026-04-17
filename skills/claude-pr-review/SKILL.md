@@ -183,35 +183,55 @@ for i in $(seq 1 20); do
 done
 ```
 
-**3c.1. Classify outcome — distinguish review vs infrastructure error vs silent timeout:**
+**3c.1. Classify outcome — distinguish review vs billing skip vs infra error vs silent timeout:**
 
-After the poll exits, the check-run may be in one of four states. Treating them all as "done" is a mistake that silently hides failures and wastes review budget. Classify explicitly:
+After the poll exits, the check-run may be in one of five states. Treating any of them as "done" without inspecting is how you ship an unreviewed PR or waste budget re-triggering something that was silently skipped. Classify explicitly:
 
 ```bash
+# Filter check-runs by started_at (NOT completed_at) — in-progress runs have
+# null completed_at and would be excluded otherwise, leaving the classifier
+# stuck in "pending" even when a run is actually running.
 CHECK_CONCLUSION=$(gh api "repos/${REPO}/commits/${AUTO_BRANCH//\//%2F}/check-runs" \
-  --jq '[.check_runs[] | select(.name | test("Claude"; "i"))] | last | .conclusion // "unknown"' 2>/dev/null)
+  --jq '[.check_runs[] | select(.name | test("Claude"; "i")) | select(.started_at > "'"${TRIGGER_TIME}"'")] | last | .conclusion // "unknown"' 2>/dev/null)
 CHECK_TITLE=$(gh api "repos/${REPO}/commits/${AUTO_BRANCH//\//%2F}/check-runs" \
-  --jq '[.check_runs[] | select(.name | test("Claude"; "i"))] | last | .output.title // ""' 2>/dev/null)
-NEW_REVIEW_COUNT=$(gh api "repos/${REPO}/pulls/${PR_NUMBER}/reviews" \
-  --jq "[.[] | select(.user.login == \"claude[bot]\" and .submitted_at > \"${TRIGGER_TIME}\")] | length" 2>/dev/null)
+  --jq '[.check_runs[] | select(.name | test("Claude"; "i")) | select(.started_at > "'"${TRIGGER_TIME}"'")] | last | .output.title // ""' 2>/dev/null)
 
-if [ "$NEW_REVIEW_COUNT" -gt 0 ]; then
-  OUTCOME="REVIEW_COMPLETED"
+# Fetch the LATEST review body (for BILLING_SKIPPED detection) AND the
+# inline-comment count (the real "was this a review" signal).
+LATEST_REVIEW=$(gh api "repos/${REPO}/pulls/${PR_NUMBER}/reviews" \
+  --jq "[.[] | select(.user.login == \"claude[bot]\" and .submitted_at > \"${TRIGGER_TIME}\")] | last" 2>/dev/null)
+REVIEW_ID=$(echo "$LATEST_REVIEW" | jq -r '.id // empty')
+REVIEW_BODY=$(echo "$LATEST_REVIEW" | jq -r '.body // ""')
+REVIEW_COMMENT_COUNT=0
+if [ -n "$REVIEW_ID" ]; then
+  REVIEW_COMMENT_COUNT=$(gh api "repos/${REPO}/pulls/${PR_NUMBER}/reviews/${REVIEW_ID}/comments" --jq 'length' 2>/dev/null || echo 0)
+fi
+
+BOT_COMMENT=$(gh api "repos/${REPO}/issues/${PR_NUMBER}/comments" \
+  --jq "[.[] | select(.user.login == \"claude[bot]\" and .created_at > \"${TRIGGER_TIME}\")] | last | .body // \"\"" 2>/dev/null)
+
+if [ "$REVIEW_COMMENT_COUNT" -gt 0 ] 2>/dev/null; then
+  OUTCOME="REVIEW_COMPLETED"            # Inline comments exist — real review
+elif echo "$REVIEW_BODY" | grep -qiE "spend limit|overage|skipped|credits"; then
+  OUTCOME="BILLING_SKIPPED"             # Review object with body only, billing-related
 elif [ "$CHECK_CONCLUSION" = "neutral" ] && echo "$CHECK_TITLE" | grep -qi "error"; then
-  OUTCOME="INFRA_ERROR"
+  OUTCOME="INFRA_ERROR"                 # Bot's framework crashed mid-review
 elif [ -n "$BOT_COMMENT" ]; then
-  OUTCOME="BOT_COMMENT_ONLY"  # billing/quota/etc, no review posted
+  OUTCOME="BOT_COMMENT_ONLY"            # Non-review bot comment (rare)
 else
-  OUTCOME="SILENT_TIMEOUT"
+  OUTCOME="SILENT_TIMEOUT"              # No check-run completed, no review, no comment
 fi
 ```
 
-| Outcome | What it means | Next step |
-|---------|---------------|-----------|
-| `REVIEW_COMPLETED` | A review object was submitted | Proceed to 3d |
-| `INFRA_ERROR` | Check-run completed `neutral` with title containing "error" (e.g. `"12 agents exited with errors (threshold=10)"`), no review posted | Go to 3c.2 auto-retry |
-| `BOT_COMMENT_ONLY` | Bot posted a comment but no review (billing/quota/etc.) | Report message to user, fall back to self-review |
-| `SILENT_TIMEOUT` | 20 polls elapsed, check-run never transitioned to completed | Fall back to self-review per the "Fallback" section; do NOT re-trigger |
+| Outcome | Signal | Next step |
+|---------|--------|-----------|
+| `REVIEW_COMPLETED` | A review object exists AND has ≥1 inline comment | Proceed to 3d |
+| `BILLING_SKIPPED` | Review object exists with NO inline comments, body contains `spend limit` / `overage` / `skipped` / `credits` | Report to user with remediation link; do NOT retry; fall back to self-review |
+| `INFRA_ERROR` | Check-run completed `neutral` with title containing `"error"` (e.g. `"12 agents exited with errors (threshold=10)"`), no review | Go to 3c.2 auto-retry (max 2 attempts) |
+| `BOT_COMMENT_ONLY` | Bot issue comment after trigger, no review object | Report message to user; fall back |
+| `SILENT_TIMEOUT` | No check-run, no review, no comment after 20 polls | Fall back; do NOT re-trigger |
+
+**Critical bug the new classifier fixes:** a review object with only a body and zero inline comments is NOT a real review. The earlier heuristic `NEW_REVIEW_COUNT > 0` misclassified billing-skip messages ("spend limit reached") as `REVIEW_COMPLETED`, because the bot submits a review object to carry the skip message. Always count inline comments, not review objects.
 
 **3c.2. Auto-retry on infrastructure error:**
 
@@ -305,7 +325,8 @@ Use `--merge` (not `--squash`) to keep local and remote aligned.
 Enter fallback when any of the following holds:
 
 - `OUTCOME=SILENT_TIMEOUT` from step 3c.1 — 20 polls elapsed, check-run never transitioned to `completed`
-- `OUTCOME=BOT_COMMENT_ONLY` — bot posted a comment (typically billing/quota) but no review object
+- `OUTCOME=BILLING_SKIPPED` — bot explicitly returned a skip-with-body message (billing/quota/overage)
+- `OUTCOME=BOT_COMMENT_ONLY` — bot posted an issue comment, no review object
 - `OUTCOME=INFRA_ERROR` persists after the 2-attempt retry cap in step 3c.2
 
 Protocol:
@@ -314,6 +335,7 @@ Protocol:
 2. Provide your own assessment (clearly labelled as self-review in the conversation)
 3. Post a PR comment explaining the fallback. Use the phrasing matched to the outcome:
    - `SILENT_TIMEOUT`: `"[Claude Code] Official review did not complete within 20 minutes. Self-review provided in conversation."`
+   - `BILLING_SKIPPED`: `"[Claude Code] Review skipped — the bot reported: <first 200 chars of review body, which usually includes the remediation link>. Self-review provided in conversation."`
    - `BOT_COMMENT_ONLY`: `"[Claude Code] Review did not run (bot reported: <summary>). Self-review provided in conversation."`
    - `INFRA_ERROR` after retries: `"[Claude Code] Review hit infrastructure errors on 2 attempts. Metadata saved locally. Self-review provided in conversation."`
 4. **Do NOT re-trigger** beyond what step 3c.2 already attempted — stops cascading cost.
@@ -322,8 +344,9 @@ Protocol:
 Common causes (per outcome):
 
 - `SILENT_TIMEOUT` — Code Review disabled in org settings, no `CLAUDE.md` in repo root, Zero Data Retention enabled (incompatible), or bot simply not installed on the repo's org.
-- `BOT_COMMENT_ONLY` — overage spend limit exhausted, billing suspended, or org-level policy blocking the review.
-- `INFRA_ERROR` — upstream Anthropic issue: rate-limit cliff, shared sub-agent worker pool exhaustion, cache cascade. Usually transient; the retry in 3c.2 handles single-episode flakes. Persistent errors warrant an incident report to Anthropic using the saved metadata in `~/.claude/logs/pr-review-infra-errors/`.
+- `BILLING_SKIPPED` — the org's Claude Code credit balance / overage pool hit its cap. Note this is distinct from the general Claude.ai plan spend. Remediation is usually in `claude.ai/admin-settings/claude-code`: raise the Code Review-specific spend limit, top up credits, or enable auto-reload. A per-repo setting of `"After every push"` (visible on the same admin page) multiplies cost — switching to `Manual (@claude review)` avoids billing for every intermediate commit.
+- `BOT_COMMENT_ONLY` — rare; bot posted an issue-level note without a review object. Inspect the comment body for the reason.
+- `INFRA_ERROR` — upstream Anthropic issue: rate-limit cliff, shared sub-agent worker pool exhaustion, cache cascade. Often the billing cap teetering at the edge can surface as an infra error rather than a clean `BILLING_SKIPPED` — if you see `INFRA_ERROR` followed by `BILLING_SKIPPED` on retry, the original was most likely billing all along. Persistent `INFRA_ERROR` after 2 retries warrants an incident report to Anthropic using the saved metadata in `~/.claude/logs/pr-review-infra-errors/`.
 
 ## Anti-spam rules
 
