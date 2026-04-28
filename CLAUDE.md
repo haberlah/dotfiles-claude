@@ -35,7 +35,7 @@ After completing work that changes files in a project repo, invoke the `claude-p
 
 ## Google Workspace access
 
-The `gws` CLI is authenticated as david@bellamed.ai. Use via Bash.
+The `gws` CLI is authenticated against David's Bella Slainte Workspace account (primary: david@bellaslainte.com; david@bellamed.ai is now an alias of the same account). Use via Bash.
 
 **Key patterns:**
 - Pass parameters as JSON: `--params '{"pageSize": 5}'`
