@@ -41,13 +41,31 @@ if "--mapping" in sys.argv:
     MAPPING_FILE = Path(sys.argv[idx + 1]).resolve()
 
 # Load Drive metadata (optional — frontmatter will have empty fields if missing)
+def load_metadata_file(path):
+    with open(path) as f:
+        data = json.load(f)
+    return data.get("files", [])
+
 if META_FILE.exists():
-    with open(META_FILE) as f:
-        drive_meta = json.load(f).get("files", [])
+    metadata_files = [META_FILE]
+else:
+    metadata_files = [
+        p for p in sorted(SRC.rglob("drive_metadata.json"))
+        if DST not in p.parents
+    ]
+
+drive_meta = []
+if metadata_files:
+    for path in metadata_files:
+        try:
+            loaded = load_metadata_file(path)
+            drive_meta.extend(loaded)
+            print(f"Loaded {len(loaded)} metadata entries from {path}")
+        except Exception as exc:
+            print(f"WARNING: Could not load metadata from {path}: {exc}")
 else:
     print(f"WARNING: Metadata file not found at {META_FILE}. Frontmatter will have empty Drive fields.")
     print(f"  Run Phase 0 (gws drive files list) first to generate drive_metadata.json")
-    drive_meta = []
 
 # Build metadata lookups
 KNOWN_EXTENSIONS = {'.md', '.docx', '.csv', '.xlsx', '.pdf', '.pptx', '.txt', '.tsv', '.zip', '.png', '.jpg'}
@@ -64,7 +82,7 @@ def normalise(name):
     return re.sub(r'[^a-z0-9 ]', '', lower).strip()
 
 # Primary: ID-based lookup
-meta_by_id = {m["id"]: m for m in drive_meta}
+meta_by_id = {m["id"]: m for m in drive_meta if m.get("id")}
 
 # Secondary: name-based lookup (lists to handle collisions)
 meta_by_name = {}
@@ -72,31 +90,49 @@ for m in drive_meta:
     key = normalise(m["name"])
     meta_by_name.setdefault(key, []).append(m)
 
-# Tertiary: manifest-based mapping (local filename → Drive ID)
+# Tertiary: manifest-based mapping (local relative path → Drive ID)
 manifest_lookup = {}
+manifest_name_lookup = {}
 for mroot, _, mfiles in os.walk(SRC):
     if "file_manifest.json" in mfiles:
         try:
+            manifest_dir = Path(mroot)
+            manifest_rel_dir = manifest_dir.relative_to(SRC)
             with open(os.path.join(mroot, "file_manifest.json")) as mf:
                 for entry in json.load(mf):
-                    manifest_lookup[entry["local"]] = entry["id"]
+                    local = entry.get("local")
+                    fid = entry.get("id")
+                    if not local or not fid:
+                        continue
+                    rel_key = str(manifest_rel_dir / local)
+                    manifest_lookup[rel_key] = fid
+                    manifest_name_lookup.setdefault(local, set()).add(fid)
         except Exception:
             pass
 
 if manifest_lookup:
-    print(f"Loaded {len(manifest_lookup)} manifest entries for ID-based lookup")
+    print(f"Loaded {len(manifest_lookup)} manifest path entries for ID-based lookup")
 else:
     print("No file manifests found — falling back to name-based metadata lookup")
 
-def find_meta(filename):
-    """Find Drive metadata. Priority: manifest ID > exact name > fuzzy name."""
-    # 1. Manifest: local filename → Drive ID → metadata
-    if filename in manifest_lookup:
-        fid = manifest_lookup[filename]
+def find_meta(rel_path, filename=None):
+    """Find Drive metadata. Priority: manifest path > unique manifest name > exact name > fuzzy name."""
+    filename = filename or Path(rel_path).name
+    rel_key = str(rel_path)
+
+    # 1. Manifest: local relative path → Drive ID → metadata
+    if rel_key in manifest_lookup:
+        fid = manifest_lookup[rel_key]
         if fid in meta_by_id:
             return meta_by_id[fid]
 
-    # 2. Normalised name (exact match)
+    # 2. Manifest: unambiguous local filename → Drive ID → metadata
+    if filename in manifest_name_lookup and len(manifest_name_lookup[filename]) == 1:
+        fid = next(iter(manifest_name_lookup[filename]))
+        if fid in meta_by_id:
+            return meta_by_id[fid]
+
+    # 3. Normalised name (exact match)
     key = normalise(filename)
     if key in meta_by_name:
         candidates = meta_by_name[key]
@@ -111,7 +147,7 @@ def find_meta(filename):
                 return c
         return candidates[0]
 
-    # 3. Fuzzy prefix (last resort, longer prefix than before)
+    # 4. Fuzzy prefix (last resort, longer prefix than before)
     if len(key) >= 15:
         for k, v_list in meta_by_name.items():
             if key[:30] in k or k[:30] in key:
@@ -432,7 +468,7 @@ for src_base in src_bases:
 
             # Inject frontmatter for .md files (and converted .txt)
             if dst_path.suffix == '.md':
-                meta = find_meta(fname)
+                meta = find_meta(rel_path, fname)
                 if meta is None and existing_provenance:
                     print(f"  WARN: No metadata for {fname} — preserving existing provenance")
                     meta = existing_provenance

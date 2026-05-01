@@ -1,7 +1,7 @@
 #!/bin/bash
 # sync_kb.sh — End-to-end sync: Google Drive → local backup → knowledge base → GitHub PR
 #
-# Usage: bash sync_kb.sh <backup_dir> <kb_dir> [--full]
+# Usage: bash sync_kb.sh <backup_dir> <kb_dir> [--full] [--include-personal] [--allow-dirty]
 #        bash sync_kb.sh (uses defaults)
 #
 # Defaults:
@@ -21,15 +21,37 @@
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
-BACKUP_DIR="${1:-$HOME/gws_backup}"
-KB_DIR="${2:-$BACKUP_DIR/kb}"
+BACKUP_DIR="$HOME/gws_backup"
+KB_DIR=""
 FULL_SYNC=false
 SHARED_ONLY=true
+ALLOW_DIRTY=false
+POSITIONAL=()
 
 for arg in "$@"; do
-  [ "$arg" = "--full" ] && FULL_SYNC=true
-  [ "$arg" = "--include-personal" ] && SHARED_ONLY=false
+  case "$arg" in
+    --full) FULL_SYNC=true ;;
+    --include-personal) SHARED_ONLY=false ;;
+    --allow-dirty) ALLOW_DIRTY=true ;;
+    *) POSITIONAL+=("$arg") ;;
+  esac
 done
+
+[ "${#POSITIONAL[@]}" -ge 1 ] && BACKUP_DIR="${POSITIONAL[0]}"
+[ "${#POSITIONAL[@]}" -ge 2 ] && KB_DIR="${POSITIONAL[1]}"
+[ -z "$KB_DIR" ] && KB_DIR="$BACKUP_DIR/kb"
+
+mkdir -p "$BACKUP_DIR" "$KB_DIR"
+
+if [ -d "$KB_DIR/.git" ] && [ "$ALLOW_DIRTY" = false ]; then
+  if [ -n "$(git -C "$KB_DIR" status --porcelain)" ]; then
+    echo "ERROR: KB repo has existing uncommitted changes."
+    echo "Review, commit, or stash them first, then rerun."
+    echo "Use --allow-dirty only when you intentionally want this sync to include the whole worktree."
+    git -C "$KB_DIR" status --short
+    exit 1
+  fi
+fi
 
 echo "=== KB Sync ==="
 echo "Backup: $BACKUP_DIR"
@@ -79,11 +101,11 @@ echo ""
 
 # --- Phase 3: Populate KB ---
 echo "--- Phase 3: Populate KB ---"
-MAPPING_ARG=""
-[ -f "$KB_DIR/category_mapping.json" ] && MAPPING_ARG="--mapping $KB_DIR/category_mapping.json"
-SKIP_ARG=""
-[ -f "$KB_DIR/skip_patterns.json" ] && SKIP_ARG="--skip $KB_DIR/skip_patterns.json"
-python3 "$SCRIPT_DIR/populate_kb.py" "$BACKUP_DIR" "$KB_DIR" $MAPPING_ARG $SKIP_ARG --metadata "$BACKUP_DIR/drive_metadata.json"
+POPULATE_ARGS=("$BACKUP_DIR" "$KB_DIR")
+[ -f "$KB_DIR/category_mapping.json" ] && POPULATE_ARGS+=(--mapping "$KB_DIR/category_mapping.json")
+[ -f "$KB_DIR/skip_patterns.json" ] && POPULATE_ARGS+=(--skip "$KB_DIR/skip_patterns.json")
+POPULATE_ARGS+=(--metadata "$BACKUP_DIR/drive_metadata.json")
+python3 "$SCRIPT_DIR/populate_kb.py" "${POPULATE_ARGS[@]}"
 echo ""
 
 # --- Phase 4: Regenerate index ---
@@ -102,6 +124,8 @@ if git diff --quiet HEAD 2>/dev/null && [ -z "$(git ls-files --others --exclude-
   exit 0
 fi
 
+BASE_BRANCH=$(git symbolic-ref --short refs/remotes/origin/HEAD 2>/dev/null | sed 's#^origin/##' || true)
+[ -z "$BASE_BRANCH" ] && BASE_BRANCH=$(git branch --show-current)
 BRANCH="sync/$(date +%Y-%m-%d)"
 CHANGES_ADDED=$(git ls-files --others --exclude-standard | wc -l | tr -d ' ')
 CHANGES_MODIFIED=$(git diff --name-only | wc -l | tr -d ' ')
@@ -109,10 +133,11 @@ CHANGES_DELETED=$(git diff --name-only --diff-filter=D | wc -l | tr -d ' ')
 
 echo "Changes: $CHANGES_ADDED added, $CHANGES_MODIFIED modified, $CHANGES_DELETED deleted"
 
-# Delete stale local branch from prior runs, then create fresh
-git branch -D "$BRANCH" 2>/dev/null || true
-git checkout -b "$BRANCH"
-git add -A
+if git rev-parse --verify "$BRANCH" >/dev/null 2>&1; then
+  BRANCH="$BRANCH-$(date +%H%M%S)"
+fi
+git switch -c "$BRANCH"
+git add --all .
 
 git commit -m "$(cat <<EOF
 sync: update KB from Drive $(date +%Y-%m-%d)
@@ -126,13 +151,19 @@ EOF
 git push -u origin "$BRANCH" 2>/dev/null
 
 # Create PR
-PR_BODY="## Drive Sync — $(date +%Y-%m-%d)
+PR_BODY_FILE=$(mktemp)
+cat > "$PR_BODY_FILE" <<EOF
+## Drive Sync — $(date +%Y-%m-%d)
 
 **$CHANGES_ADDED** files added, **$CHANGES_MODIFIED** modified, **$CHANGES_DELETED** deleted.
 
-Automated sync from Google Drive via \`sync_kb.sh\`."
+Automated sync from Google Drive via \`sync_kb.sh\`.
+EOF
 
-gh pr create --title "Sync: Drive changes $(date +%Y-%m-%d)" --body "$PR_BODY" 2>/dev/null || echo "PR creation failed (may need gh auth)"
+gh pr create --draft --base "$BASE_BRANCH" --head "$BRANCH" \
+  --title "Sync: Drive changes $(date +%Y-%m-%d)" \
+  --body-file "$PR_BODY_FILE" 2>/dev/null || echo "PR creation failed (may need gh auth)"
+rm -f "$PR_BODY_FILE"
 
 echo ""
 echo "=== Sync complete ==="

@@ -60,6 +60,7 @@ for root, dirs, files in os.walk(KB_ROOT):
                     if end > 0:
                         fm = yaml.safe_load(content[4:end])
                         if isinstance(fm, dict):
+                            fm.pop("sensitivity", None)
                             entry.update(fm)
                             if not fm.get('google_doc_id'):
                                 print(f"  WARN: Empty provenance in {rel}")
@@ -71,7 +72,6 @@ for root, dirs, files in os.walk(KB_ROOT):
         cat = parts[0] if parts else "uncategorised"
         if cat not in entry:
             entry.setdefault("category", cat)
-        entry.setdefault("sensitivity", "confidential" if cat == "contacts" else "internal")
 
         # Track categories
         if cat not in categories:

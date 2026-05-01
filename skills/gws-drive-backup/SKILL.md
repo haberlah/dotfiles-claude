@@ -112,6 +112,8 @@ python3 <skill_dir>/scripts/populate_kb.py <backup_dir> <kb_dir> \
 - `<kb_dir>` — output directory for the knowledge base
 - `--metadata` — path to `drive_metadata.json` from Phase 0 (provides google_doc_id, author, timestamps)
 
+If `--metadata` is omitted and `<backup_dir>/drive_metadata.json` is missing, `populate_kb.py` will look for nested `drive_metadata.json` files under the backup tree. It also uses file manifests with relative paths so duplicate filenames in different Drive folders do not collide.
+
 **Config files you create (project-specific):**
 
 `category_mapping.json` — maps Drive folder patterns to KB topic directories:
@@ -147,7 +149,19 @@ Defaults to `~/gws_backup` and `~/gws_backup/kb` if no args provided. Automatica
 
 Add `--include-personal` to include personal Drive files (shared drives only by default).
 
+By default, `sync_kb.sh` stops if the KB repo has existing uncommitted changes, preventing unrelated files from being swept into the PR. Use `--allow-dirty` only when the whole worktree is intentionally in scope.
+
 Generates `index.json` via `build_index.py` for programmatic catalogue access.
+
+### Codex PR Review
+
+For GitHub code review, use Codex rather than Claude Code Review:
+
+```bash
+gh pr comment <PR_NUMBER> --repo Bella-Slainte/bella-assist-kb --body '@codex review'
+```
+
+Do not use `@claude review` or `@claude review once` for new KB PRs unless the user explicitly asks for Claude Code Review.
 
 ## Manual export commands
 
