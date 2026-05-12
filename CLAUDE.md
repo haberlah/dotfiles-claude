@@ -33,6 +33,10 @@ A Stop hook auto-commits the dotfiles-claude config repo after every response. F
 
 After completing work that changes files in a project repo, invoke the `claude-pr-review` skill. Do NOT commit or push project repo changes outside the skill. If the user's intent is clear ("push it", "create a PR", "review it"), skip the prompt and proceed.
 
+## Local repo locations
+
+Local clones of GitHub repos live in `~/Documents/GitHub/` (GitHub Desktop's default). When looking for a repo by name, check there first before searching the filesystem. GitHub Desktop (GUI) and `gh`/`git` (CLI) operate on the same on-disk repos with no conflict — use whichever fits the task. Don't try to drive GitHub Desktop programmatically.
+
 ## Google Workspace access
 
 The `gws` CLI is authenticated against David's Bella Slainte Workspace account (primary: david@bellaslainte.com; david@bellamed.ai is now an alias of the same account). Use via Bash.
