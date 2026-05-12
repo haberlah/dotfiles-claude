@@ -35,7 +35,7 @@ After completing work that changes files in a project repo, invoke the `claude-p
 
 ## Local repo locations
 
-Local clones of GitHub repos live in `~/Documents/GitHub/` (GitHub Desktop's default). When looking for a repo by name, check there first before searching the filesystem. GitHub Desktop (GUI) and `gh`/`git` (CLI) operate on the same on-disk repos with no conflict — use whichever fits the task. Don't try to drive GitHub Desktop programmatically.
+Local clones live in `~/Documents/GitHub/` (GitHub Desktop's default). Check there first when looking for a repo by name.
 
 ## Google Workspace access
 
