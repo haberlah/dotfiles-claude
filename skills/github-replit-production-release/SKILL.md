@@ -1,6 +1,6 @@
 ---
 name: github-replit-production-release
-description: "Use when the user wants to ship local repo changes through GitHub and Replit production: submit or update a GitHub PR, run Codex or Claude PR review, fix issues, merge, pull or sync into Replit, run Replit checks, publish production, verify the live app, and confirm GitHub, Replit, and local clones are synced. Trigger on deploy to GitHub/Replit, submit PR then publish, pull into Replit, production release, or verify all repos are synced."
+description: "Use when the user wants to ship local repo changes through GitHub and Replit production: submit or update a GitHub PR, run Codex or Claude PR review, fix issues, handle required human/code-owner approval gates, merge, pull or sync into Replit, run Replit checks, publish production, verify the live app, and confirm GitHub, Replit, and local clones are synced. Trigger on deploy to GitHub/Replit, submit PR then publish, pull into Replit, production release, required PR approval, or verify all repos are synced."
 ---
 
 # GitHub Replit Production Release
@@ -25,7 +25,7 @@ SKILL_DIR="${CODEX_HOME:-$HOME/.codex}/skills/github-replit-production-release"
 "$SKILL_DIR/scripts/release_preflight.sh" /path/to/repo
 ```
 
-For Claude Code, set `SKILL_DIR="$HOME/.claude/skills/github-replit-production-release"` instead.
+For Claude Code, set `SKILL_DIR` to the actual installed/source skill path. On this machine the Claude copy lives at `$HOME/dotfiles-claude/skills/github-replit-production-release`; if installed into Claude's default skill directory, use `$HOME/.claude/skills/github-replit-production-release`.
 
 Use the preflight output to identify:
 
@@ -55,17 +55,53 @@ Use the preflight output to identify:
    - Push and create or update a PR with a body that includes validation run, risks, and Replit follow-up steps.
    - If an auto PR workflow exists, verify it actually created or updated the PR.
 
-4. **Codex or Claude PR review**
+4. **Codex PR review**
    - Use the repo's configured review mechanism. For Codex GitHub review, use the supported `@codex review` trigger only when the repo/account has that integration active.
-   - For Claude GitHub App review, use the configured trigger such as `@claude review once` only once per commit. Do not spam duplicate review comments.
    - Poll PR checks, review comments, and requested changes. Fix actionable issues, push follow-up commits, and repeat until checks are green and review items are resolved or explicitly waived.
    - Separate true blockers from style nits, stale comments, and known unrelated validation debt.
+   - Before asking for merge or code-owner approval, bring the GitHub review state back into the current Codex or Claude console. Include:
+     - PR number, branch, author, and current review decision.
+     - GitHub checks and Actions status, including failing job names and links when available.
+     - Codex/Claude/GitHub review findings, grouped as fixed, waived, or still blocking.
+     - Follow-up commits pushed after review, with short SHAs and what they changed.
+     - Any remaining risk or verification surface that could not be checked.
+   - If review findings or failing checks required fixes, state exactly what was changed and re-run or re-read the relevant GitHub checks before continuing.
 
-5. **Merge**
+5. **Required human approval gate**
+   - Before merge, inspect branch protection, CODEOWNERS, PR author, requested reviewers, and the active `gh` identity:
+
+     ```bash
+     gh auth status
+     gh api user --jq .login
+     gh pr view <number> --repo <owner/repo> --json author,reviewRequests,reviewDecision,mergeStateStatus,statusCheckRollup
+     gh api /repos/<owner>/<repo>/branches/<default>/protection \
+       --jq '{required_pull_request_reviews:.required_pull_request_reviews}'
+     ```
+
+   - For Bella-Slainte private repos with mandatory `@haberlah` CODEOWNERS approval, a Codex or Claude review is advisory only. It does not satisfy the required `@haberlah` approval.
+   - If the active `gh` account is `haberlah`, the PR author is not `haberlah`, checks/reviews are acceptable, and the user explicitly authorizes approval, submit the code-owner approval with:
+
+     ```bash
+     gh pr review <number> --repo <owner/repo> --approve --body "Approved as code owner."
+     ```
+
+  - If the PR author is `haberlah`, do not try to self-approve. GitHub rejects author self-approval (`Review Can not approve your own pull request`) and it will not satisfy required reviews. Stop before merge and ask for a different eligible code owner/reviewer path, such as adding another code owner before the PR, having another authorized owner approve, or intentionally changing branch protection with explicit user approval.
+  - If the user explicitly authorizes a solo-admin path, treat it as an admin bypass, not a self-approval. Verify branch protection first. For Bella-Slainte repos, disabling admin enforcement on the protected branch can preserve required reviews for non-admins while allowing `haberlah` to merge with admin privileges. Re-read branch protection and PR merge state after changing it, then use admin merge only when checks and advisory reviews are acceptable:
+
+    ```bash
+    gh api -X DELETE /repos/<owner>/<repo>/branches/<default>/protection/enforce_admins
+    gh pr merge <number> --repo <owner/repo> --squash --admin --delete-branch
+    ```
+
+    If admin enforcement should be restored after release, explicitly set it back after the merge and confirm the resulting protection state.
+   - After any approval, re-read the PR mergeability and review decision before merging. Do not assume the command satisfied the gate.
+   - Make the approval decision easy for the user to answer in the active interface. If the interface supports structured choices, present a two-choice prompt: `Approve as @haberlah` / `Do not approve yet`. If the interface only supports plain text, ask exactly: `Approve this PR as @haberlah now? Reply yes or no.` Do not proceed on ambiguous responses.
+
+6. **Merge**
    - Merge only after required checks and review gates are satisfied and the user has authorized merge/publish for this run.
    - After merge, fetch and fast-forward the local default branch. Confirm the local default SHA equals `origin/<default>`.
 
-6. **Replit sync and checks**
+7. **Replit sync and checks**
    - Pull or sync the merged default branch into Replit through the Replit Git pane or workspace shell.
    - If the Replit workspace has its own publish/checkpoint commits, merge `origin/<default>` into the workspace instead of rewriting Replit history. Do not push Replit-generated history directly back to GitHub unless the user explicitly asks.
    - Confirm the GitHub default branch content is present in Replit. Exact SHA equality is ideal, but Replit may remain ahead because of platform commits; in that case use concrete evidence: merge commit, file content, Git pane status, deployment logs, and live behavior.
@@ -74,18 +110,18 @@ Use the preflight output to identify:
    - For Replit Security Center, the automatic dependency scan refresh is a normal check. Do not start paid/credit agent scans unless the user explicitly asks for that deeper scan.
    - Do not run live schema/data mutation in Replit unless the user explicitly asks and the migration path is understood.
 
-7. **Publish production**
+8. **Publish production**
    - Publish/deploy from Replit only after Replit checks pass or the user accepts documented residual risk.
    - Watch deployment logs until completion or clear failure.
    - Capture the production deployment URL, deployment time, deployment ID, and any commit/build identifier Replit exposes. A successful Replit deploy log should show all stages complete and end with a clear success line such as `Deployment successful`.
 
-8. **Live verification**
+9. **Live verification**
    - Open the production URL in a browser and verify the actual changed behavior.
    - Exercise the relevant auth route or smoke flow. For auth-gated apps, verify unauthenticated behavior and, if credentials/session are available, authenticated behavior.
    - For GitHub-OAuth apps without the target user's credentials, verify what can be proven: `/api/login` redirects to GitHub OAuth with expected scopes, `/api/auth/user` rejects unauthenticated requests, production serves the current build, and tests/config prove the allowlist behavior. State clearly that the target user's actual login was not credential-tested.
    - Check server responses or browser console/network only as needed; do not treat a successful HTTP 200 for the shell as proof of the feature.
 
-9. **Final sync report**
+10. **Final sync report**
    - Report GitHub default branch SHA, local default branch SHA, Replit workspace/deployment SHA or evidence, live URL, and verification result.
    - Check for other local clones before claiming "all local clones" are synced. Search `~/Documents` for matching repo directories, inspect their remotes, and fast-forward clean stale clones with `git pull --ff-only origin <default>` when safe.
    - Call out any surface that could not be verified and why.
@@ -99,7 +135,8 @@ Use the preflight output to identify:
 
 ## Common blockers
 
-- GitHub review integration is not installed or does not respond to `@codex`/`@claude`.
+- GitHub review integration is not installed or does not respond to `@codex`.
+- Required `@haberlah` code-owner approval is blocked because the PR author is also `haberlah`; GitHub rejects author self-approval. Do not silently bypass branch protection. Use a non-author approval path, or an explicitly authorized admin-bypass setup change.
 - Replit requires browser-authenticated UI action and cannot be completed from local shell.
 - The user expects Replit app actions to happen in the native Replit app when they say so; using Chrome for that stage is a workflow bug.
 - Replit workspace is dirty or behind GitHub after merge.
