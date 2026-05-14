@@ -1,6 +1,6 @@
 ---
 name: github-replit-production-release
-description: "Use when the user wants to ship local repo changes through GitHub and Replit production: submit or update a GitHub PR, run Codex or Claude PR review, fix issues, handle required human/code-owner approval gates, merge, pull or sync into Replit, run Replit checks, publish production, verify the live app, and confirm GitHub, Replit, and local clones are synced. Trigger on deploy to GitHub/Replit, submit PR then publish, pull into Replit, production release, required PR approval, or verify all repos are synced."
+description: "Ship repo changes through GitHub PR review, Replit sync/checks, production publish, live verification, and sync reporting."
 ---
 
 # GitHub Replit Production Release
@@ -62,7 +62,7 @@ Use the preflight output to identify:
    - Before asking for merge or code-owner approval, bring the GitHub review state back into the current Codex or Claude console. Include:
      - PR number, branch, author, and current review decision.
      - GitHub checks and Actions status, including failing job names and links when available.
-     - Codex/Claude/GitHub review findings, grouped as fixed, waived, or still blocking.
+     - Codex GitHub review findings, grouped as fixed, waived, or still blocking.
      - Follow-up commits pushed after review, with short SHAs and what they changed.
      - Any remaining risk or verification surface that could not be checked.
    - If review findings or failing checks required fixes, state exactly what was changed and re-run or re-read the relevant GitHub checks before continuing.
@@ -78,7 +78,7 @@ Use the preflight output to identify:
        --jq '{required_pull_request_reviews:.required_pull_request_reviews}'
      ```
 
-   - For Bella-Slainte private repos with mandatory `@haberlah` CODEOWNERS approval, a Codex or Claude review is advisory only. It does not satisfy the required `@haberlah` approval.
+   - For Bella-Slainte private repos with mandatory `@haberlah` CODEOWNERS approval, a Codex review on GitHub is advisory only. It does not satisfy the required `@haberlah` approval.
    - If the active `gh` account is `haberlah`, the PR author is not `haberlah`, checks/reviews are acceptable, and the user explicitly authorizes approval, submit the code-owner approval with:
 
      ```bash
