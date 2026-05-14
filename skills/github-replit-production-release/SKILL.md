@@ -85,17 +85,19 @@ Use the preflight output to identify:
      gh pr review <number> --repo <owner/repo> --approve --body "Approved as code owner."
      ```
 
-  - If the PR author is `haberlah`, do not try to self-approve. GitHub rejects author self-approval (`Review Can not approve your own pull request`) and it will not satisfy required reviews. Stop before merge and ask for a different eligible code owner/reviewer path, such as adding another code owner before the PR, having another authorized owner approve, or intentionally changing branch protection with explicit user approval.
-  - If the user explicitly authorizes a solo-admin path, treat it as an admin bypass, not a self-approval. Verify branch protection first. For Bella-Slainte repos, disabling admin enforcement on the protected branch can preserve required reviews for non-admins while allowing `haberlah` to merge with admin privileges. Re-read branch protection and PR merge state after changing it, then use admin merge only when checks and advisory reviews are acceptable:
+   - If the PR author is `haberlah`, never attempt `gh pr review --approve`, even when `haberlah` is repo admin and CODEOWNER. GitHub rejects author self-approval (`Review Can not approve your own pull request`) and it does not satisfy required reviews. Offer either a different eligible reviewer/code-owner path or an explicitly authorized solo-admin merge path.
+   - If the user explicitly authorizes a solo-admin path, treat it as an admin-bypass merge, not a self-approval. Verify branch protection, mergeability, checks, and advisory reviews first. For Bella-Slainte repos, the tested path for a mergeable PR blocked only by `REVIEW_REQUIRED` is:
 
     ```bash
-    gh api -X DELETE /repos/<owner>/<repo>/branches/<default>/protection/enforce_admins
+    gh api /repos/<owner>/<repo>/branches/<default>/protection \
+      --jq '{required_pull_request_reviews:.required_pull_request_reviews,enforce_admins:.enforce_admins.enabled}'
+    gh pr view <number> --repo <owner/repo> --json author,reviewDecision,mergeStateStatus,mergeable,statusCheckRollup
     gh pr merge <number> --repo <owner/repo> --squash --admin --delete-branch
     ```
 
-    If admin enforcement should be restored after release, explicitly set it back after the merge and confirm the resulting protection state.
-   - After any approval, re-read the PR mergeability and review decision before merging. Do not assume the command satisfied the gate.
-   - Make the approval decision easy for the user to answer in the active interface. If the interface supports structured choices, present a two-choice prompt: `Approve as @haberlah` / `Do not approve yet`. If the interface only supports plain text, ask exactly: `Approve this PR as @haberlah now? Reply yes or no.` Do not proceed on ambiguous responses.
+    This was confirmed on BellaAssist-MVP-2 PR #40 on 2026-05-14: the PR was authored by `haberlah`, self-approval was rejected, branch protection required one code-owner review, `enforce_admins` was false, and `gh pr merge --squash --admin --delete-branch` succeeded. Do not change branch protection unless the user explicitly approves that separate setup change. If `gh pr merge --admin` is rejected, stop and report the exact blocker.
+   - After any approval, re-read the PR mergeability and review decision before merging. Before any admin-bypass merge, re-read mergeability and protection state. Do not assume either path satisfied the gate.
+   - Make the approval or bypass decision easy for the user to answer in the active interface. If the PR author is not `haberlah`, ask exactly: `Approve this PR as @haberlah now? Reply yes or no.` If the PR author is `haberlah`, ask exactly: `Admin-bypass merge this PR as @haberlah now? Reply yes or no.` Do not proceed on ambiguous responses.
 
 6. **Merge**
    - Merge only after required checks and review gates are satisfied and the user has authorized merge/publish for this run.
@@ -136,7 +138,7 @@ Use the preflight output to identify:
 ## Common blockers
 
 - GitHub review integration is not installed or does not respond to `@codex`.
-- Required `@haberlah` code-owner approval is blocked because the PR author is also `haberlah`; GitHub rejects author self-approval. Do not silently bypass branch protection. Use a non-author approval path, or an explicitly authorized admin-bypass setup change.
+- Required `@haberlah` code-owner approval is blocked because the PR author is also `haberlah`; GitHub rejects author self-approval. Do not attempt approval in this case. Use a non-author approval path, or an explicitly authorized `gh pr merge --admin` bypass when the user accepts the solo-admin path.
 - Replit requires browser-authenticated UI action and cannot be completed from local shell.
 - The user expects Replit app actions to happen in the native Replit app when they say so; using Chrome for that stage is a workflow bug.
 - Replit workspace is dirty or behind GitHub after merge.
