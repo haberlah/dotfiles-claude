@@ -86,7 +86,7 @@ Use the preflight output to identify:
      ```
 
    - If the PR author is `haberlah`, never attempt `gh pr review --approve`, even when `haberlah` is repo admin and CODEOWNER. GitHub rejects author self-approval (`Review Can not approve your own pull request`) and it does not satisfy required reviews. Offer either a different eligible reviewer/code-owner path or an explicitly authorized solo-admin merge path.
-   - If the user explicitly authorizes a solo-admin path, treat it as an admin-bypass merge, not a self-approval. Verify branch protection, mergeability, checks, and advisory reviews first. For Bella-Slainte repos, the tested path for a mergeable PR blocked only by `REVIEW_REQUIRED` is:
+   - If the user explicitly authorizes a solo-admin path, treat it as an explicit bypass merge, not a self-approval. Verify branch protection, mergeability, checks, and advisory reviews first. For Bella-Slainte repos, the preferred protection standard is `enforce_admins: true` with `haberlah` listed in `required_pull_request_reviews.bypass_pull_request_allowances.users`; older repos may still have `enforce_admins: false`, but tighten that before relying on it when practical. For a mergeable PR blocked only by `REVIEW_REQUIRED`, use:
 
     ```bash
     gh api /repos/<owner>/<repo>/branches/<default>/protection \
@@ -95,7 +95,8 @@ Use the preflight output to identify:
     gh pr merge <number> --repo <owner/repo> --squash --admin --delete-branch
     ```
 
-    This was confirmed on BellaAssist-MVP-2 PR #40 on 2026-05-14: the PR was authored by `haberlah`, self-approval was rejected, branch protection required one code-owner review, `enforce_admins` was false, and `gh pr merge --squash --admin --delete-branch` succeeded. Do not change branch protection unless the user explicitly approves that separate setup change. If `gh pr merge --admin` is rejected, stop and report the exact blocker.
+    This was originally confirmed on BellaAssist-MVP-2 PR #40 on 2026-05-14: the PR was authored by `haberlah`, self-approval was rejected, and `gh pr merge --squash --admin --delete-branch` succeeded. The Bella-Slainte active-repo standard was then tightened to enforce protections for admins while allowing `haberlah` as the explicit bypass user. If `gh pr merge --admin` is rejected, stop and report the exact blocker.
+   - Check repo-specific review policy before requesting approval. Most active Bella-Slainte repos are David-gated (`require_code_owner_reviews: true`, `CODEOWNERS` `* @haberlah`). The KB repo (`bella-assist-kb`) is intentionally looser: it requires one approval, but `require_code_owner_reviews` is false, so any eligible writer/admin reviewer can approve someone else's PR. Do not re-tighten KB to David-only unless the user explicitly asks.
    - After any approval, re-read the PR mergeability and review decision before merging. Before any admin-bypass merge, re-read mergeability and protection state. Do not assume either path satisfied the gate.
    - Make the approval or bypass decision easy for the user to answer in the active interface. If the PR author is not `haberlah`, ask exactly: `Approve this PR as @haberlah now? Reply yes or no.` If the PR author is `haberlah`, ask exactly: `Admin-bypass merge this PR as @haberlah now? Reply yes or no.` Do not proceed on ambiguous responses.
 
