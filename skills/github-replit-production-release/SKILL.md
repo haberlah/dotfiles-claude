@@ -53,11 +53,13 @@ Use the preflight output to identify:
    - Create a purpose branch from current `main`/default unless continuing an existing feature branch.
    - Commit only scoped files with a concrete message.
    - Push and create or update a PR with a body that includes validation run, risks, and Replit follow-up steps.
+   - If an open PR already exists for the branch or release unit, push small follow-up fixes to that same PR. Do not open a replacement PR or "resubmit" the work for minor review/check fixes; a small follow-up commit is the normal continuation of the existing PR.
    - If an auto PR workflow exists, verify it actually created or updated the PR.
 
 4. **Codex PR review**
    - Use the repo's configured review mechanism. For Codex GitHub review, use the supported `@codex review` trigger only when the repo/account has that integration active.
-   - Poll PR checks, review comments, and requested changes. Fix actionable issues, push follow-up commits, and repeat until checks are green and review items are resolved or explicitly waived.
+   - Poll PR checks, review comments, and requested changes. Fix actionable issues, push follow-up commits to the same PR, and repeat until checks are green and review items are resolved or explicitly waived.
+   - Re-trigger Codex review on the same PR only when the previous review/checks produced actionable findings, the follow-up commit materially changed the reviewed diff, or the repo policy requires a fresh advisory review. Do not use a new PR for a small fix unless the old PR is already merged/closed or the scope has genuinely changed; review reruns happen on the same PR.
    - Separate true blockers from style nits, stale comments, and known unrelated validation debt.
    - Before asking for merge or code-owner approval, bring the GitHub review state back into the current Codex or Claude console. Include:
      - PR number, branch, author, and current review decision.
@@ -117,6 +119,20 @@ Use the preflight output to identify:
    - Publish/deploy from Replit only after Replit checks pass or the user accepts documented residual risk.
    - Watch deployment logs until completion or clear failure.
    - Capture the production deployment URL, deployment time, deployment ID, and any commit/build identifier Replit exposes. A successful Replit deploy log should show all stages complete and end with a clear success line such as `Deployment successful`.
+   - After publish, inspect Replit Git state again before declaring completion:
+
+     ```bash
+     git status --short --branch
+     git rev-parse HEAD origin/<default>
+     git log --oneline --decorate --max-count=8
+     git rev-list --left-right --count origin/<default>...HEAD
+     ```
+
+   - Replit publish/checkpoint actions can create workspace commits after a successful deployment. Classify any ahead commits before deciding what to do:
+     - If they include intentional source, config, migration, documentation, or script changes required for the release, push them to GitHub from Replit or recreate/cherry-pick them locally, then fetch/pull the GitHub default branch into every relevant local clone.
+     - If they are Replit-only platform/checkpoint metadata or accidental agent scratch files, do not push them to GitHub. Clean scratch files when safe, leave platform commits alone if Replit owns them, and report the divergence with evidence.
+     - If unsure whether an ahead commit belongs in GitHub, stop and ask before pushing.
+   - If Replit commits are pushed to GitHub after publish, repeat the sync loop: fetch/pull local default branch, confirm `HEAD == origin/<default>`, re-run only the verification needed to prove the pushed delta did not change behavior, and update the final report with the new GitHub SHA.
 
 9. **Live verification**
    - Open the production URL in a browser and verify the actual changed behavior.
@@ -126,6 +142,10 @@ Use the preflight output to identify:
 
 10. **Final sync report**
    - Report GitHub default branch SHA, local default branch SHA, Replit workspace/deployment SHA or evidence, live URL, and verification result.
+   - Explicitly report the post-publish Replit Git state:
+     - `clean and aligned` when Replit `HEAD` equals `origin/<default>`;
+     - `ahead and pushed` when Replit publish produced commits that were pushed back to GitHub and pulled into local clones;
+     - `ahead and intentionally not pushed` when Replit-only platform/checkpoint commits remain, including the ahead count and why they were not pushed.
    - Check for other local clones before claiming "all local clones" are synced. Search `~/Documents` for matching repo directories, inspect their remotes, and fast-forward clean stale clones with `git pull --ff-only origin <default>` when safe.
    - Call out any surface that could not be verified and why.
    - If a branch, PR, or deployment is left open, state the exact next action.
@@ -144,6 +164,7 @@ Use the preflight output to identify:
 - The user expects Replit app actions to happen in the native Replit app when they say so; using Chrome for that stage is a workflow bug.
 - Replit workspace is dirty or behind GitHub after merge.
 - Replit workspace is ahead of GitHub because of platform publish/checkpoint commits. This is not automatically wrong; report the divergence and prove deployed content instead of trying to force identical histories.
+- Replit publish produced real source/config commits that were not pushed back to GitHub and then pulled into local clones. This is a release-sync miss: classify the commits, push or recreate them when appropriate, and repeat local/default-branch sync before final sign-off.
 - Required checks depend on secrets or databases not available locally.
 - Build passes but live deployment points at an older commit.
 
