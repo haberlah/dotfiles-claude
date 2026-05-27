@@ -103,12 +103,6 @@ codex-infinity-thread/
     └── troubleshooting.md
 ```
 
-## Background
-
-A full write-up, including the diagnosis, the generalised toolkit, and why this
-matters if you run long-lived Codex "megathreads", is in
-[`docs/keeping-a-codex-conversation-alive.md`](docs/keeping-a-codex-conversation-alive.md).
-
 ## Contributing and security
 
 See [CONTRIBUTING.md](CONTRIBUTING.md) and [SECURITY.md](SECURITY.md). In short:
