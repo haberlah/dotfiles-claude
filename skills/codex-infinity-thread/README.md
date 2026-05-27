@@ -27,7 +27,7 @@ session. This skill keeps the session instead.
 ## Install
 
 ```bash
-git clone https://github.com/Haberlah/codex-infinity-thread.git \
+git clone https://github.com/haberlah/codex-infinity-thread.git \
   ~/.claude/skills/codex-infinity-thread
 ```
 
