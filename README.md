@@ -37,7 +37,7 @@ git clone https://github.com/haberlah/dotfiles-claude.git ~/dotfiles-claude
 ```
 
 The setup script:
-- Symlinks `CLAUDE.md`, `settings.json`, `hooks/`, and `skills/` into `~/.claude/`
+- Symlinks `CLAUDE.md`, `settings.json`, `hooks/`, `skills/`, `commands/`, `agents/`, and `rules/` into `~/.claude/` (relative paths when cloned to `~/dotfiles-claude`, so they survive a different username)
 - Copies `settings.local.example.json` to `settings.local.json` (your machine-specific permissions — gitignored, never pushed)
 - Installs a pre-commit hook that blocks secrets
 - Backs up any existing config before overwriting
@@ -81,6 +81,9 @@ dotfiles-claude/
 │   └── auto-pr.yml                 # Optional GitHub Action for self-hosted review fallback
 ├── install-workflows.sh            # Install self-hosted review workflow into a project repo
 ├── skills/                         # 123 local skills across 8 categories
+├── commands/                       # Single-file slash commands (e.g. /dotfiles-status)
+├── agents/                         # Subagent definitions (e.g. secrets-auditor)
+├── rules/                          # Topic-scoped instructions, optionally path-gated
 ├── setup.sh                        # One-command installer
 └── LICENSE                         # MIT
 ```
@@ -166,7 +169,7 @@ Project repos are **not** auto-committed by the hook. Instead, Claude invokes th
 ## Security
 
 **Pre-commit hook** scans every dotfiles commit for:
-- API keys (Anthropic, GitHub, AWS, Stripe, Slack, SendGrid, Vercel, npm, PyPI)
+- API keys (Anthropic, OpenAI, GitHub, AWS, Stripe, Slack, SendGrid, Vercel, npm, PyPI, Perplexity, Browserbase, Google)
 - JWTs and session cookies
 - Google Cloud service account keys
 - Private keys and certificate files
@@ -216,6 +219,22 @@ Skills are available immediately in your next Claude Code session.
 | `dbt-skills` | creating-dbt-models, debugging-dbt-errors, testing-dbt-models, documenting-dbt-models, migrating-sql-to-dbt, refactoring-dbt-models |
 | `snowflake-skills` | finding-expensive-queries, optimizing-query-by-id, optimizing-query-text |
 
+## Commands, Agents & Rules
+
+Beyond skills, three more config locations are scaffolded here, each with one annotated
+template to copy:
+
+| Location | Invoked | Example |
+|---|---|---|
+| `commands/*.md` | `/name` (single-file slash command) | `dotfiles-status.md` → `/dotfiles-status` reports repo sync + symlink health |
+| `agents/*.md` | auto-delegated or `@agent-name` | `secrets-auditor.md` → read-only subagent that scans for leaks before a push |
+| `rules/*.md` | auto-loaded, optionally path-gated | `shell-scripts.md` → conventions that load only when a `.sh` file is read |
+
+Subagent identity comes from the `name:` frontmatter field, not the filename. A rule **without**
+a `paths:` field loads every session like `CLAUDE.md`; the bundled `shell-scripts.md` is
+path-gated, so it stays out of context until a matching file is touched. Project-scoped
+equivalents live in `.claude/commands/`, `.claude/agents/`, and `.claude/rules/`.
+
 ## Customising After Forking
 
 | File | What to change |
@@ -225,6 +244,9 @@ Skills are available immediately in your next Claude Code session.
 | `settings.json` | Token limits, auto-commit behaviour, MCP timeouts, enabled plugins |
 | `skills/` | Remove skills you don't use, add your own |
 | `hooks/` | Remove or modify hooks (e.g., disable auto-commit, add custom guards) |
+| `commands/` | Add single-file slash commands (`/name`) |
+| `agents/` | Add subagent definitions (auto-delegated or `@agent-name`) |
+| `rules/` | Add topic-scoped instructions; add `paths:` frontmatter to path-gate them |
 
 Shared settings (`settings.json`, `CLAUDE.md`, hooks, skills) sync via git. Machine-specific permissions and tokens (`settings.local.json`) stay local.
 
