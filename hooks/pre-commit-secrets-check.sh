@@ -55,6 +55,14 @@ SECRET_PATTERNS=(
   # Private keys
   'private_key'
   'BEGIN (RSA |EC |DSA |OPENSSH )?PRIVATE KEY'
+  # Stack-specific API key prefixes (defence-in-depth for this toolchain)
+  'pplx-[a-zA-Z0-9]{32,}'          # Perplexity
+  'bb_(live|test)_[a-zA-Z0-9]'     # Browserbase
+  'github_pat_[a-zA-Z0-9_]{22,}'   # GitHub fine-grained PAT
+  'ghs_[A-Za-z0-9]{36}'            # GitHub app/server token
+  'ghr_[A-Za-z0-9]{36}'            # GitHub refresh token
+  'AIza[0-9A-Za-z_-]{35}'          # Google API key
+  'sk-proj-[a-zA-Z0-9_-]{20,}'     # OpenAI project key (sk- regex breaks on the hyphen)
 )
 
 # File patterns that should never be committed
