@@ -97,7 +97,6 @@ dotfiles-claude/
 | Setting | Value | Effect |
 |---|---|---|
 | `alwaysThinkingEnabled` | `true` | Extended thinking on every response. Better architecture decisions, debugging, and multi-step refactors. |
-| `effortLevel` | `"high"` | High reasoning effort on every turn. |
 | `showTurnDuration` | `true` | Shows per-turn timing. Helps spot slow MCP tools or overly broad searches. |
 | `teammateMode` | `"tmux"` | Agent teams in tmux split panes. Watch each agent work in real time. |
 
@@ -106,11 +105,11 @@ dotfiles-claude/
 | Variable | Value | Effect |
 |---|---|---|
 | `CLAUDE_CODE_MAX_OUTPUT_TOKENS` | `64000` | Double the default (32k). Increase to `128000` if responses are still truncating, at the cost of more frequent auto-compaction. |
-| `CLAUDE_AUTOCOMPACT_PCT_OVERRIDE` | `80` | Auto-compacts at 80% context usage (default 90%). Larger buffer before context limits. |
+| `CLAUDE_AUTOCOMPACT_PCT_OVERRIDE` | `90` | Auto-compacts at 90% context usage. Explicit to lock in the default. |
 | `CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS` | `1` | Enables parallel agent teams. Ask Claude to "use a team" for multi-file tasks. |
 | `MCP_TIMEOUT` | `30000` | 30s MCP server connection timeout (up from default 10s). |
-| `CLAUDE_CODE_EFFORT_LEVEL` | `max` | Maximum reasoning effort via environment variable (supplements `effortLevel` setting). |
-| `MCP_TOOL_TIMEOUT` | `180000` | 3-minute per-tool timeout. Needed for browser automation, file uploads, and deep research tools. |
+| `CLAUDE_CODE_EFFORT_LEVEL` | `max` | Maximum reasoning effort. |
+| `MCP_TOOL_TIMEOUT` | `300000` | 5-minute per-tool timeout. Long enough for Perplexity reason and Playwright; `perplexity_research` (5–15 min) is the explicit opt-in exception. |
 
 ### Permissions (`settings.local.example.json`)
 
