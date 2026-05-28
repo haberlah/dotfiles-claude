@@ -76,7 +76,9 @@
     "github@claude-plugins-official": true,
     "playwright@claude-plugins-official": true,
     "vercel@claude-plugins-official": true,
-    "slack@claude-plugins-official": true
+    "slack@claude-plugins-official": true,
+    "typescript-lsp@claude-plugins-official": true,
+    "pyright-lsp@claude-plugins-official": true
   },
   "alwaysThinkingEnabled": true,
   "showTurnDuration": true,
