@@ -78,7 +78,8 @@
     "vercel@claude-plugins-official": true,
     "slack@claude-plugins-official": true,
     "typescript-lsp@claude-plugins-official": true,
-    "pyright-lsp@claude-plugins-official": true
+    "pyright-lsp@claude-plugins-official": true,
+    "feature-dev@claude-plugins-official": true
   },
   "alwaysThinkingEnabled": true,
   "showTurnDuration": true,
