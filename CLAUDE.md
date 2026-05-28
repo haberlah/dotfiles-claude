@@ -14,6 +14,25 @@ Before implementing any non-trivial task:
 
 Use EnterPlanMode for multi-step tasks.
 
+## Subagent delegation (feature-dev)
+
+The `feature-dev` plugin ships three specialised subagents. Use them at these
+checkpoints rather than doing everything in the main turn:
+
+- **`code-explorer`** — invoke BEFORE planning a change that touches unfamiliar
+  code. Traces execution paths, maps abstraction layers, returns a digest plus
+  the files most worth reading.
+- **`code-architect`** — invoke AFTER exploration and BEFORE writing code, for
+  any non-trivial feature or refactor. Returns a blueprint: files to create or
+  modify, integration points, build sequence.
+- **`code-reviewer`** — invoke AFTER substantial code is written and BEFORE
+  declaring done. Runs in fresh context and catches what the implementing turn
+  missed.
+
+Distinct from built-in `/code-review`, which is ad-hoc diff review on the current
+branch. The agent is for end-of-task review of just-authored code; the skill is
+for "review my current changes" on demand.
+
 ## Web search and browsing
 
 ### Perplexity — primary search engine
