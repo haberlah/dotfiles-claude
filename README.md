@@ -19,14 +19,19 @@ An opinionated [Claude Code](https://docs.anthropic.com/en/docs/claude-code) set
 
 ### Fork and customise (recommended)
 
+**Set your fork to Private in the fork dialog.** The Stop hook auto-pushes to your fork after every Claude response, so a public fork publishes your config customisations and any future skills you author. Private keeps your work confidential while still letting you pull upstream updates from this repo.
+
 ```bash
-# 1. Fork this repo on GitHub, then:
+# 1. Fork this repo on GitHub (choose Private visibility), then:
 git clone https://github.com/YOUR_USERNAME/dotfiles-claude.git ~/dotfiles-claude
 cd ~/dotfiles-claude
 git remote add upstream https://github.com/haberlah/dotfiles-claude.git
 
 # 2. Run setup (symlinks config into ~/.claude/, copies permission template)
 ~/dotfiles-claude/setup.sh
+
+# 3. If you forgot to set Private in the fork dialog, fix it now:
+gh repo edit YOUR_USERNAME/dotfiles-claude --visibility private
 ```
 
 ### Or clone directly (if you don't plan to track upstream updates)
