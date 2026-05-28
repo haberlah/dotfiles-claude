@@ -56,6 +56,10 @@ After completing work that changes files in a project repo, invoke the `claude-p
 
 Local clones live in `~/Documents/GitHub/` (GitHub Desktop's default). Check there first when looking for a repo by name.
 
+## GitHub repo creation
+
+For Bella-Sláinte org repos, default to **private**: `gh new-repo <name>` (alias of `gh repo create --private`) or `gh repo create Bella-Slainte/<name> --private` explicitly. The org runs on GitHub's Team plan, which doesn't expose a "default visibility" enforcement, so this is owner discipline. Pick `--public` only for genuine community resources.
+
 ## Google Workspace access
 
 The `gws` CLI is authenticated against David's Bella Slainte Workspace account (primary: david@bellaslainte.com; david@bellamed.ai is now an alias of the same account). Use via Bash.
