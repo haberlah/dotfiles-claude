@@ -85,5 +85,6 @@
   "alwaysThinkingEnabled": true,
   "showTurnDuration": true,
   "teammateMode": "tmux",
-  "skipAutoPermissionPrompt": true
+  "skipAutoPermissionPrompt": true,
+  "skipWorkflowUsageWarning": true
 }
