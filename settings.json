@@ -5,7 +5,6 @@
     "CLAUDE_CODE_MAX_OUTPUT_TOKENS": "64000",
     "MCP_TIMEOUT": "30000",
     "MCP_TOOL_TIMEOUT": "300000",
-    "CLAUDE_CODE_EFFORT_LEVEL": "max",
     "CLAUDE_AUTOCOMPACT_PCT_OVERRIDE": "90"
   },
   "permissions": {
@@ -83,6 +82,7 @@
     "ralph-loop@claude-plugins-official": true
   },
   "alwaysThinkingEnabled": true,
+  "effortLevel": "xhigh",
   "showTurnDuration": true,
   "teammateMode": "tmux",
   "skipAutoPermissionPrompt": true,
