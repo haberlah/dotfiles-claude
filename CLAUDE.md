@@ -38,13 +38,14 @@ for "review my current changes" on demand.
 ### Perplexity — primary search engine
 
 - **Default** → `perplexity_ask` with `search_context_size: "medium"` (always pass explicitly). Add `search_recency_filter` for evolving topics.
-- **Multi-source reasoning/comparisons** → `perplexity_reason` with `high` context. Use `strip_thinking: true` when context is getting full.
+- **Multi-source reasoning/comparisons** → `perplexity_reason` with `search_context_size: "high"`. Use `strip_thinking: true` when useful to conserve context.
 - **URL discovery only** → `perplexity_search`. Not needed alongside ask/reason.
-- **Deep research** → `perplexity_research` ONLY when user explicitly requests it. Always `reasoning_effort: "high"`, `strip_thinking: true`, run in a **background agent**, warn about 5-15 min wait.
+- **Deep research** → `perplexity_research` ONLY when user explicitly requests it. Warn that it can take 5-15 minutes, use `reasoning_effort: "high"`, and set `strip_thinking: true` if supported.
+- **SDK escalation** → use `/Users/haberlah/Documents/GitHub/llm-perplexity-search-config` for repeatable or bulk workflows that need many queries, dedupe, filtering, ranking, Anthropic SDK tool-use integration, or project-code integration. Keep MCP as the interactive default.
 
 ### Escalation chain
 
-Perplexity first (retry once) → Brave Search (only if Perplexity MCP is down, not for query failures) → WebFetch → Playwright → Browserbase (never `stagehand_agent`). Try multiple tools before reporting failure.
+Perplexity first (retry once) → Brave Search only if Perplexity MCP is down → WebFetch → Playwright → Browserbase/browser tools as appropriate. Try multiple tools before reporting failure.
 
 ## Commit and PR workflow
 
