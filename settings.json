@@ -83,8 +83,10 @@
   },
   "alwaysThinkingEnabled": true,
   "effortLevel": "xhigh",
+  "skipWorkflowUsageWarning": true,
+  "theme": "dark",
   "showTurnDuration": true,
   "teammateMode": "tmux",
   "skipAutoPermissionPrompt": true,
-  "skipWorkflowUsageWarning": true
+  "model": "opus"
 }
