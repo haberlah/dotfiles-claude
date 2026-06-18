@@ -14,10 +14,13 @@ gh api /repos/OWNER/REPO/branches/BASE_BRANCH/protection \
   --jq '{required_pull_request_reviews:.required_pull_request_reviews, required_status_checks:.required_status_checks, enforce_admins:.enforce_admins.enabled}'
 ```
 
-## Bella-Slainte Defaults
+If the branch uses repository rulesets instead of classic branch protection, inspect the rulesets in GitHub or through the appropriate GitHub API.
 
-- `Bella-Slainte/BellaAssist-MVP-2`: code-owner approval from `@haberlah` is required; bot review is advisory.
-- `Bella-Slainte/bella-assist-architecture-pack`: code-owner approval from `@haberlah` and `validate` status check are required; bot review is advisory.
-- `Bella-Slainte/bella-assist-kb`: one approval is required; code-owner review is not required unless GitHub config changes.
+## Configuration Boundaries
 
-Always verify live GitHub branch protection before merging; this reference can drift.
+- GitHub App repository access controls which repositories a bot can reach.
+- Branch protection and rulesets control merge eligibility.
+- `review-policy.json` controls agent behavior before comments are posted.
+- The guard script classifies observed evidence; it does not post comments or merge PRs.
+
+Always verify live GitHub configuration before merging. Any static reference can drift.

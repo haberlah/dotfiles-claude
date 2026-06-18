@@ -1,43 +1,24 @@
 # Claude Code Review
 
-Claude Code Review is optional, manual, and deliberately narrower than Codex review.
+Claude Code Review is disabled by default in the public policy. Enable it only by setting `providers.claude.enabled` to `true` and listing allowed repositories in `providers.claude.allowedRepos`.
 
-## Scope
+## Manual Only
 
-- Allowed repository: `Bella-Slainte/BellaAssist-MVP-2` only.
-- Do not use Claude GitHub review for architecture-pack, KB, Mountwinter, SOW, or other Bella-Slainte repos unless David explicitly changes this policy.
-- The GitHub-side Claude App should be restricted to selected repositories with only `BellaAssist-MVP-2` selected. If the app still has `repository_selection: all`, report that as configuration drift before triggering Claude.
+- Trigger Claude only after the user explicitly asks for Claude review on the current PR.
+- Use the configured exact trigger, normally `@claude review once`.
+- Do not use bare `@claude review` unless the local policy intentionally permits repeated behavior.
 
-## Triggering
+## Allowed Repositories
 
-- Trigger only after David explicitly asks for Claude Code Review on the current PR.
-- Use exactly: `@claude review once`.
-- Do not prefix the trigger comment.
-- Do not use bare `@claude review`; it can enable repeated review behavior and unnecessary cost.
+GitHub App repository access is the hard security boundary. The policy is a behavioral guard that prevents agents from requesting Claude outside the intended repositories.
 
-## First-Cycle Rule
+Keep both layers aligned:
 
-The allowed Claude cycle is the first review cycle for the first reviewable PR head only.
+- GitHub App installation: selected repositories where Claude is allowed.
+- `review-policy.json`: same allowed repositories in `providers.claude.allowedRepos`.
 
-Allowed inside the same first cycle:
+If the GitHub App has broader access than policy, report configuration drift before triggering Claude.
 
-- Polling for the original run.
-- Classifying billing, quota, infra, skipped, or timeout outcomes.
-- Retrying only when the existing Claude review workflow classifies the prior run as infrastructure failure and the retry cap allows it.
+## First Cycle
 
-Not allowed:
-
-- Triggering Claude after fix commits are pushed.
-- Triggering Claude because Codex found issues.
-- Triggering Claude for a later PR head after an earlier Claude review completed, skipped, or produced any bot-side review/check-run evidence.
-
-Use Codex for every later review.
-
-## Generic or No-Findings Responses
-
-Never accept a generic Claude "looks good", thumbs-up, or no-findings message without checking whether a real review ran. Verify at least one of:
-
-- A Claude review object exists on the current head SHA and has inline review comments.
-- A Claude check-run for the current head SHA completed successfully after the trigger and the review/comment body is a no-findings result.
-
-If the response body mentions spend limits, overage, credits, skipped, disabled, not installed, not configured, or errors, classify as skipped or failed, not clean.
+When `firstCycleOnly` is enabled, the first Claude trigger/review/check on a PR consumes the Claude review cycle. Subsequent reviews after fixes should use `reviewFlow.rerunProviderAfterFixes`, normally Codex.

@@ -8,50 +8,143 @@ import datetime as dt
 import json
 import re
 import subprocess
-import sys
+import os
 from pathlib import Path
 from typing import Any
 
 
-DEFAULT_POLICY_PATH = Path(__file__).resolve().parents[1] / "references" / "review-policy.json"
+SKILL_ROOT = Path(__file__).resolve().parents[1]
+DEFAULT_POLICY_PATH = SKILL_ROOT / "references" / "review-policy.json"
+EXAMPLE_POLICY_PATH = SKILL_ROOT / "references" / "review-policy.example.json"
+USER_POLICY_PATH = Path.home() / ".config" / "github-pr-review-policy" / "review-policy.json"
+
+DEFAULT_POLICY: dict[str, Any] = {
+    "reviewFlow": {
+        "defaultProvider": "codex",
+        "rerunProviderAfterFixes": "codex",
+        "verifyGenericNoFindings": True,
+    },
+    "providers": {
+        "codex": {
+            "enabled": True,
+            "trigger": "@codex review",
+            "dedupeScope": "head",
+            "allowTriggerSuffix": True,
+            "botLoginPatterns": ["codex", "chatgpt", "openai"],
+            "checkRunPatterns": ["codex", "chatgpt", "openai"],
+        },
+        "claude": {
+            "enabled": False,
+            "trigger": "@claude review once",
+            "dedupeScope": "pr-once",
+            "allowTriggerSuffix": False,
+            "allowedRepos": [],
+            "manualOnly": True,
+            "firstCycleOnly": True,
+            "botLoginPatterns": ["claude", "anthropic"],
+            "checkRunPatterns": ["claude", "anthropic"],
+        },
+    },
+    "skipTextPatterns": [
+        "usage limit",
+        "spend limit",
+        "overage",
+        "credits?",
+        "quota",
+        "skipp?ed",
+        "disabled",
+        "not enabled",
+        "not configured",
+        "not installed",
+        "connect to github",
+        "no access",
+        "permission",
+        "unauthori[sz]ed",
+        "billing",
+        "could not",
+        "couldn't",
+        "failed to",
+        "error",
+    ],
+    "genericOkPatterns": [
+        "\\blgtm\\b",
+        "looks good",
+        "thumbs?\\s*up",
+        "no issues",
+        "no major issues",
+        "no findings",
+        "did(?:n't| not) find any .*issues",
+        "clean review",
+        "nothing to flag",
+        "approved",
+        "all good",
+        "no problems found",
+    ],
+}
 
 
-def load_policy() -> dict[str, Any]:
+def merge_dict(base: dict[str, Any], override: dict[str, Any]) -> dict[str, Any]:
+    merged = dict(base)
+    for key, value in override.items():
+        if isinstance(value, dict) and isinstance(merged.get(key), dict):
+            merged[key] = merge_dict(merged[key], value)
+        else:
+            merged[key] = value
+    return merged
+
+
+def find_policy_path(path: str | None = None) -> Path | None:
+    if path:
+        return Path(path).expanduser()
+    env_path = os.environ.get("PR_REVIEW_POLICY_PATH")
+    if env_path:
+        return Path(env_path).expanduser()
+    if USER_POLICY_PATH.exists():
+        return USER_POLICY_PATH
+    if DEFAULT_POLICY_PATH.exists():
+        return DEFAULT_POLICY_PATH
+    if EXAMPLE_POLICY_PATH.exists():
+        return EXAMPLE_POLICY_PATH
+    return None
+
+
+def load_policy(path: str | None = None) -> dict[str, Any]:
+    policy_path = find_policy_path(path)
+    if not policy_path:
+        return DEFAULT_POLICY
     try:
-        return json.loads(DEFAULT_POLICY_PATH.read_text())
+        raw = json.loads(policy_path.read_text())
     except FileNotFoundError:
-        return {
-            "providers": {
-                "codex": {
-                    "trigger": "@codex review",
-                    "dedupeScope": "head",
-                    "allowTriggerSuffix": True,
-                    "botLoginPatterns": ["codex", "chatgpt", "openai"],
-                    "checkRunPatterns": ["codex", "chatgpt", "openai"],
-                },
-                "claude": {
-                    "trigger": "@claude review once",
-                    "dedupeScope": "pr-once",
-                    "allowTriggerSuffix": False,
-                    "allowedRepos": ["Bella-Slainte/BellaAssist-MVP-2"],
-                    "botLoginPatterns": ["claude", "anthropic"],
-                    "checkRunPatterns": ["claude", "anthropic"],
-                },
-            }
-        }
+        raise SystemExit(json.dumps({"status": "policy_error", "error": f"Policy file not found: {policy_path}"}, indent=2))
+    except json.JSONDecodeError as exc:
+        raise SystemExit(json.dumps({"status": "policy_error", "error": f"Invalid JSON in {policy_path}: {exc}"}, indent=2))
+    policy = merge_dict(DEFAULT_POLICY, raw)
+    policy["_policyPath"] = str(policy_path)
+    return policy
 
 
-POLICY = load_policy()
-PROVIDERS = POLICY["providers"]
-TRIGGER_TEXT = {provider: cfg["trigger"] for provider, cfg in PROVIDERS.items()}
+def configure_policy(policy: dict[str, Any]) -> None:
+    global POLICY, PROVIDERS, TRIGGER_TEXT, TRIGGER_RE, SKIP_RE, GENERIC_OK_RE
+    POLICY = policy
+    PROVIDERS = POLICY["providers"]
+    TRIGGER_TEXT = {provider: cfg["trigger"] for provider, cfg in PROVIDERS.items()}
+    TRIGGER_RE = {provider: trigger_re(provider) for provider in PROVIDERS}
+    SKIP_RE = union_re(POLICY.get("skipTextPatterns", []))
+    GENERIC_OK_RE = union_re(POLICY.get("genericOkPatterns", []))
+
+
+POLICY: dict[str, Any] = {}
+PROVIDERS: dict[str, dict[str, Any]] = {}
+TRIGGER_TEXT: dict[str, str] = {}
+TRIGGER_RE: dict[str, re.Pattern[str]] = {}
+SKIP_RE: re.Pattern[str]
+GENERIC_OK_RE: re.Pattern[str]
 
 
 def trigger_re(provider: str) -> re.Pattern[str]:
     trigger = re.escape(TRIGGER_TEXT[provider])
     suffix = r"\b" if PROVIDERS[provider].get("allowTriggerSuffix") else r"\s*$"
     return re.compile(r"^\s*" + trigger + suffix, re.I)
-
-TRIGGER_RE = {provider: trigger_re(provider) for provider in PROVIDERS}
 
 
 def union_re(patterns: list[str]) -> re.Pattern[str]:
@@ -60,8 +153,7 @@ def union_re(patterns: list[str]) -> re.Pattern[str]:
     return re.compile(r"(" + "|".join(patterns) + r")", re.I)
 
 
-SKIP_RE = union_re(POLICY.get("skipTextPatterns", []))
-GENERIC_OK_RE = union_re(POLICY.get("genericOkPatterns", []))
+configure_policy(load_policy())
 
 ERROR_RE = re.compile(r"(error|failed|failure|cancelled|timed out|timeout|neutral)", re.I)
 MARKER_RE = re.compile(
@@ -350,6 +442,9 @@ def pre_codex(state: dict[str, Any], emit_comment_body: bool, timeout_minutes: i
     reasons: list[str] = []
     allow = True
 
+    if not PROVIDERS["codex"].get("enabled", True):
+        allow = False
+        reasons.append("Codex review provider is disabled by policy")
     if state["state"] != "open":
         allow = False
         reasons.append("PR is not open")
@@ -369,7 +464,7 @@ def pre_codex(state: dict[str, Any], emit_comment_body: bool, timeout_minutes: i
         reasons.append(f"Codex status is {classification['status']} on current head or needs verification")
 
     if allow:
-        reasons.append("No current-head Codex review evidence found; trigger @codex review")
+        reasons.append(f"No current-head Codex review evidence found; trigger {TRIGGER_TEXT['codex']}")
 
     result = {"allow_trigger": allow, "bot": "codex", "reasons": reasons, **classification}
     if emit_comment_body and allow:
@@ -384,9 +479,16 @@ def pre_claude(state: dict[str, Any], allow_retry: bool, emit_comment_body: bool
     allow = True
 
     allowed_repos = PROVIDERS["claude"].get("allowedRepos", [])
+    if not PROVIDERS["claude"].get("enabled", False):
+        allow = False
+        reasons.append("Claude review provider is disabled by policy")
+    if not allowed_repos:
+        allow = False
+        reasons.append("Claude review has no allowed repositories configured")
     if state["repo"] not in allowed_repos:
         allow = False
-        reasons.append(f"Claude review is limited to {', '.join(allowed_repos)}")
+        configured = ", ".join(allowed_repos) if allowed_repos else "none"
+        reasons.append(f"Claude review is limited to configured repositories: {configured}")
     if state["state"] != "open":
         allow = False
         reasons.append("PR is not open")
@@ -409,7 +511,7 @@ def pre_claude(state: dict[str, Any], allow_retry: bool, emit_comment_body: bool
         reasons.append("A Claude trigger marker already exists on this PR")
 
     if allow:
-        reasons.append("Manual Claude first-cycle trigger is allowed only if David explicitly requested it")
+        reasons.append("Manual Claude first-cycle trigger is allowed only after an explicit user request")
 
     result = {"allow_trigger": allow, "bot": "claude", "reasons": reasons, **classification}
     if emit_comment_body and allow:
@@ -419,6 +521,10 @@ def pre_claude(state: dict[str, Any], allow_retry: bool, emit_comment_body: bool
 
 def main() -> int:
     parser = argparse.ArgumentParser()
+    parser.add_argument(
+        "--policy",
+        help="Path to review-policy.json. Defaults to PR_REVIEW_POLICY_PATH, then the skill references directory.",
+    )
     sub = parser.add_subparsers(dest="command", required=True)
 
     for name in ("pre-codex", "pre-claude"):
@@ -441,7 +547,31 @@ def main() -> int:
     s.add_argument("--repo", required=True)
     s.add_argument("--pr", required=True, type=int)
 
+    sub.add_parser("policy")
+
     args = parser.parse_args()
+    configure_policy(load_policy(args.policy))
+
+    if args.command == "policy":
+        result = {
+            "status": "ok",
+            "policy_path": POLICY.get("_policyPath"),
+            "reviewFlow": POLICY.get("reviewFlow", {}),
+            "providers": {
+                name: {
+                    "enabled": cfg.get("enabled", True),
+                    "trigger": cfg.get("trigger"),
+                    "dedupeScope": cfg.get("dedupeScope"),
+                    "allowedRepos": cfg.get("allowedRepos", []),
+                    "manualOnly": cfg.get("manualOnly", False),
+                    "firstCycleOnly": cfg.get("firstCycleOnly", False),
+                }
+                for name, cfg in PROVIDERS.items()
+            },
+        }
+        print(json.dumps(result, indent=2, sort_keys=True))
+        return 0
+
     state = load_state(args.repo, args.pr)
 
     if args.command == "pre-codex":
@@ -463,12 +593,20 @@ def main() -> int:
             },
         }
     else:
+        trigger_seen = None
+        if args.trigger_comment_id:
+            trigger_seen = any(str(c.get("id")) == str(args.trigger_comment_id) for c in state["comments"])
         result = {
             "allow_trigger": False,
             "bot": args.bot,
             "reasons": ["classification only"],
+            "trigger_comment_id": args.trigger_comment_id,
+            "trigger_comment_seen": trigger_seen,
             **classify_state(state, args.bot, args.timeout_minutes),
         }
+        if args.trigger_comment_id and not trigger_seen:
+            result["status"] = "trigger_comment_not_found"
+            result["reasons"] = [f"Trigger comment {args.trigger_comment_id} was not found on this PR"]
         if args.trigger_head_sha and args.trigger_head_sha != state["head_sha"]:
             result["status"] = "head_changed_after_trigger"
             result["reasons"] = [f"Current head {state['head_sha']} differs from trigger head {args.trigger_head_sha}"]

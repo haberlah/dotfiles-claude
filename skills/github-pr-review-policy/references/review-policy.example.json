@@ -14,11 +14,11 @@
       "checkRunPatterns": ["codex", "chatgpt", "openai"]
     },
     "claude": {
-      "enabled": false,
+      "enabled": true,
       "trigger": "@claude review once",
       "dedupeScope": "pr-once",
       "allowTriggerSuffix": false,
-      "allowedRepos": [],
+      "allowedRepos": ["OWNER/REPO"],
       "manualOnly": true,
       "firstCycleOnly": true,
       "botLoginPatterns": ["claude", "anthropic"],
