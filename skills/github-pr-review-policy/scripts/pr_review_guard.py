@@ -53,15 +53,15 @@ def trigger_re(provider: str) -> re.Pattern[str]:
 
 TRIGGER_RE = {provider: trigger_re(provider) for provider in PROVIDERS}
 
-SKIP_RE = re.compile(
-    r"(" + "|".join(POLICY.get("skipTextPatterns", [])) + r")",
-    re.I,
-)
 
-GENERIC_OK_RE = re.compile(
-    r"(" + "|".join(POLICY.get("genericOkPatterns", [])) + r")",
-    re.I,
-)
+def union_re(patterns: list[str]) -> re.Pattern[str]:
+    if not patterns:
+        return re.compile(r"a\A")
+    return re.compile(r"(" + "|".join(patterns) + r")", re.I)
+
+
+SKIP_RE = union_re(POLICY.get("skipTextPatterns", []))
+GENERIC_OK_RE = union_re(POLICY.get("genericOkPatterns", []))
 
 ERROR_RE = re.compile(r"(error|failed|failure|cancelled|timed out|timeout|neutral)", re.I)
 MARKER_RE = re.compile(
@@ -70,9 +70,12 @@ MARKER_RE = re.compile(
 )
 
 
-def run_gh(path: str) -> Any:
+def run_gh(path: str, *, paginate: bool = False) -> Any:
+    cmd = ["gh", "api", path]
+    if paginate:
+        cmd.extend(["--paginate", "--slurp"])
     proc = subprocess.run(
-        ["gh", "api", path],
+        cmd,
         text=True,
         stdout=subprocess.PIPE,
         stderr=subprocess.PIPE,
@@ -93,6 +96,29 @@ def run_gh(path: str) -> Any:
     return json.loads(proc.stdout or "null")
 
 
+def flatten_paginated(data: Any, *, object_array_key: str | None = None) -> list[dict[str, Any]]:
+    if data is None:
+        return []
+    pages = data if isinstance(data, list) else [data]
+    flattened: list[dict[str, Any]] = []
+    for page in pages:
+        if isinstance(page, list):
+            flattened.extend(item for item in page if isinstance(item, dict))
+        elif isinstance(page, dict) and object_array_key:
+            flattened.extend(item for item in page.get(object_array_key, []) if isinstance(item, dict))
+        elif isinstance(page, dict):
+            flattened.append(page)
+    return flattened
+
+
+def run_gh_paginated_array(path: str) -> list[dict[str, Any]]:
+    return flatten_paginated(run_gh(path, paginate=True))
+
+
+def run_gh_paginated_object_array(path: str, key: str) -> list[dict[str, Any]]:
+    return flatten_paginated(run_gh(path, paginate=True), object_array_key=key)
+
+
 def iso_parse(value: str | None) -> dt.datetime | None:
     if not value:
         return None
@@ -108,6 +134,19 @@ def item_time(item: dict[str, Any]) -> dt.datetime:
         if parsed:
             return parsed
     return dt.datetime.min.replace(tzinfo=dt.timezone.utc)
+
+
+def now_utc() -> dt.datetime:
+    return dt.datetime.now(dt.timezone.utc)
+
+
+def age_minutes(item: dict[str, Any] | None) -> float | None:
+    if not item:
+        return None
+    timestamp = item_time(item)
+    if timestamp == dt.datetime.min.replace(tzinfo=dt.timezone.utc):
+        return None
+    return max(0.0, (now_utc() - timestamp).total_seconds() / 60)
 
 
 def user_login(item: dict[str, Any]) -> str:
@@ -132,6 +171,12 @@ def checkrun_text(item: dict[str, Any]) -> str:
 
 def body_text(item: dict[str, Any]) -> str:
     return str(item.get("body") or "")
+
+
+def body_mentions_head(item: dict[str, Any], head_sha: str) -> bool:
+    text = body_text(item).lower()
+    head = head_sha.lower()
+    return head in text or head[:10] in text or head[:8] in text or head[:7] in text
 
 
 def marker_for(provider: str, head_sha: str, scope: str) -> str:
@@ -178,16 +223,19 @@ def load_state(repo: str, pr: int) -> dict[str, Any]:
         "head_sha": head_sha,
         "state": pr_obj.get("state"),
         "draft": bool(pr_obj.get("draft")),
-        "comments": run_gh(f"/repos/{owner}/{name}/issues/{pr}/comments?per_page=100"),
-        "reviews": run_gh(f"/repos/{owner}/{name}/pulls/{pr}/reviews?per_page=100"),
-        "review_comments": run_gh(f"/repos/{owner}/{name}/pulls/{pr}/comments?per_page=100"),
-        "check_runs": (run_gh(f"/repos/{owner}/{name}/commits/{head_sha}/check-runs?per_page=100") or {}).get("check_runs", []),
+        "comments": run_gh_paginated_array(f"/repos/{owner}/{name}/issues/{pr}/comments?per_page=100"),
+        "reviews": run_gh_paginated_array(f"/repos/{owner}/{name}/pulls/{pr}/reviews?per_page=100"),
+        "review_comments": run_gh_paginated_array(f"/repos/{owner}/{name}/pulls/{pr}/comments?per_page=100"),
+        "check_runs": run_gh_paginated_object_array(
+            f"/repos/{owner}/{name}/commits/{head_sha}/check-runs?per_page=100",
+            "check_runs",
+        ),
     }
 
 
 def relevant_items(state: dict[str, Any], bot: str) -> dict[str, list[dict[str, Any]]]:
     head = state["head_sha"]
-    comments = [c for c in state["comments"] if matches_bot(bot, c) or TRIGGER_RE[bot].search(body_text(c))]
+    bot_comments = [c for c in state["comments"] if matches_bot(bot, c)]
     reviews = [r for r in state["reviews"] if matches_bot(bot, r)]
     head_reviews = [r for r in reviews if r.get("commit_id") in (None, "", head)]
     inline = [c for c in state["review_comments"] if matches_bot(bot, c) and c.get("commit_id") in (None, "", head)]
@@ -196,7 +244,7 @@ def relevant_items(state: dict[str, Any], bot: str) -> dict[str, list[dict[str, 
     markers = [c for c in state["comments"] if marker_matches(c, bot)]
     head_markers = [c for c in state["comments"] if marker_matches(c, bot, head)]
     return {
-        "comments": comments,
+        "comments": bot_comments,
         "reviews": reviews,
         "head_reviews": head_reviews,
         "inline_comments": inline,
@@ -219,8 +267,10 @@ def collect_text(items: list[dict[str, Any]], *, check_run: bool = False) -> str
     return "\n".join(body_text(i) for i in items)
 
 
-def classify_state(state: dict[str, Any], bot: str) -> dict[str, Any]:
+def classify_state(state: dict[str, Any], bot: str, timeout_minutes: int = 30) -> dict[str, Any]:
     rel = relevant_items(state, bot)
+    latest_trigger = latest(rel["triggers"])
+    trigger_age = age_minutes(latest_trigger)
     texts = "\n".join(
         [
             collect_text(rel["comments"]),
@@ -258,12 +308,12 @@ def classify_state(state: dict[str, Any], bot: str) -> dict[str, Any]:
     elif latest_comment and GENERIC_OK_RE.search(body_text(latest_comment)):
         if latest_check and latest_check.get("status") == "completed" and latest_check.get("conclusion") in {"success", "neutral", "skipped"}:
             status = "review_completed_no_findings"
+        elif body_mentions_head(latest_comment, state["head_sha"]):
+            status = "review_completed_no_findings"
         else:
             status = "generic_unverified"
-    elif rel["triggers"] and not (rel["reviews"] or rel["comments"] or rel["check_runs"]):
-        status = "silent_timeout"
-    elif rel["triggers"] and not (rel["head_reviews"] or rel["inline_comments"] or rel["check_runs"]):
-        status = "silent_timeout"
+    elif rel["triggers"] and not (rel["head_reviews"] or rel["inline_comments"] or rel["comments"] or rel["check_runs"]):
+        status = "in_progress" if trigger_age is not None and trigger_age < timeout_minutes else "silent_timeout"
     else:
         status = "no_review_evidence"
 
@@ -281,7 +331,9 @@ def classify_state(state: dict[str, Any], bot: str) -> dict[str, Any]:
             "check_runs": len(rel["check_runs"]),
         },
         "latest": {
-            "trigger_at": (latest(rel["triggers"]) or {}).get("created_at"),
+            "trigger_at": (latest_trigger or {}).get("created_at"),
+            "trigger_age_minutes": round(trigger_age, 1) if trigger_age is not None else None,
+            "timeout_minutes": timeout_minutes,
             "review_at": (latest_review or {}).get("submitted_at"),
             "review_commit": (latest_review or {}).get("commit_id"),
             "comment_at": (latest_comment or {}).get("created_at"),
@@ -292,8 +344,8 @@ def classify_state(state: dict[str, Any], bot: str) -> dict[str, Any]:
     }
 
 
-def pre_codex(state: dict[str, Any], emit_comment_body: bool) -> dict[str, Any]:
-    classification = classify_state(state, "codex")
+def pre_codex(state: dict[str, Any], emit_comment_body: bool, timeout_minutes: int = 30) -> dict[str, Any]:
+    classification = classify_state(state, "codex", timeout_minutes)
     rel = relevant_items(state, "codex")
     reasons: list[str] = []
     allow = True
@@ -325,8 +377,8 @@ def pre_codex(state: dict[str, Any], emit_comment_body: bool) -> dict[str, Any]:
     return result
 
 
-def pre_claude(state: dict[str, Any], allow_retry: bool, emit_comment_body: bool) -> dict[str, Any]:
-    classification = classify_state(state, "claude")
+def pre_claude(state: dict[str, Any], allow_retry: bool, emit_comment_body: bool, timeout_minutes: int = 30) -> dict[str, Any]:
+    classification = classify_state(state, "claude", timeout_minutes)
     rel = relevant_items(state, "claude")
     reasons: list[str] = []
     allow = True
@@ -374,6 +426,7 @@ def main() -> int:
         p.add_argument("--repo", required=True)
         p.add_argument("--pr", required=True, type=int)
         p.add_argument("--emit-comment-body", action="store_true")
+        p.add_argument("--timeout-minutes", type=int, default=30)
     sub.choices["pre-claude"].add_argument("--allow-infra-retry", action="store_true")
 
     c = sub.add_parser("classify")
@@ -392,9 +445,9 @@ def main() -> int:
     state = load_state(args.repo, args.pr)
 
     if args.command == "pre-codex":
-        result = pre_codex(state, args.emit_comment_body)
+        result = pre_codex(state, args.emit_comment_body, args.timeout_minutes)
     elif args.command == "pre-claude":
-        result = pre_claude(state, args.allow_infra_retry, args.emit_comment_body)
+        result = pre_claude(state, args.allow_infra_retry, args.emit_comment_body, args.timeout_minutes)
     elif args.command == "snapshot":
         result = {
             "repo": state["repo"],
@@ -410,7 +463,12 @@ def main() -> int:
             },
         }
     else:
-        result = {"allow_trigger": False, "bot": args.bot, "reasons": ["classification only"], **classify_state(state, args.bot)}
+        result = {
+            "allow_trigger": False,
+            "bot": args.bot,
+            "reasons": ["classification only"],
+            **classify_state(state, args.bot, args.timeout_minutes),
+        }
         if args.trigger_head_sha and args.trigger_head_sha != state["head_sha"]:
             result["status"] = "head_changed_after_trigger"
             result["reasons"] = [f"Current head {state['head_sha']} differs from trigger head {args.trigger_head_sha}"]

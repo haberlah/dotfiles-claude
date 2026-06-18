@@ -11,6 +11,7 @@ python3 scripts/pr_review_guard.py pre-codex --repo OWNER/REPO --pr PR_NUMBER --
 python3 scripts/pr_review_guard.py pre-claude --repo OWNER/REPO --pr PR_NUMBER --emit-comment-body
 python3 scripts/pr_review_guard.py classify --bot codex --repo OWNER/REPO --pr PR_NUMBER
 python3 scripts/pr_review_guard.py classify --bot claude --repo OWNER/REPO --pr PR_NUMBER
+python3 scripts/pr_review_guard.py classify --bot codex --repo OWNER/REPO --pr PR_NUMBER --timeout-minutes 45
 python3 scripts/pr_review_guard.py snapshot --repo OWNER/REPO --pr PR_NUMBER
 ```
 
@@ -39,12 +40,12 @@ The script uses `gh api` for:
 ## Classifications
 
 - `review_completed_findings`: bot inline comments exist on the current head.
-- `review_completed_no_findings`: current-head bot review/check-run evidence exists and the body indicates no findings.
-- `in_progress`: relevant check-run is queued or in progress.
+- `review_completed_no_findings`: current-head bot review/check-run evidence exists and the body indicates no findings. A bot issue comment that says it reviewed the current head SHA also counts.
+- `in_progress`: relevant check-run is queued/in progress, or a trigger is newer than `--timeout-minutes` and no result has appeared yet.
 - `skipped`: bot text says review was skipped, disabled, not configured, blocked by limits, or similar.
 - `infra_or_review_error`: relevant check-run failed or completed with an error-like neutral result.
 - `generic_unverified`: a generic positive/no-findings message exists, but there is no review/check-run evidence proving the bot actually reviewed the current head.
-- `silent_timeout`: trigger exists but there is no bot review, bot comment, or check-run evidence.
+- `silent_timeout`: trigger exists but there is no bot review, bot result comment, or check-run evidence after `--timeout-minutes`.
 - `no_review_evidence`: no matching trigger or bot evidence.
 
 ## Review Bot Matching
