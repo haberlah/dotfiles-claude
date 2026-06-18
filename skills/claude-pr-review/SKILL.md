@@ -1,16 +1,16 @@
 ---
 name: claude-pr-review
-description: Commit, push, and optionally create a PR with Claude Code Review for any repo. Presents the user with workflow options before taking action. Use after completing any task that changes files in a project repo. Triggers on task completion — look for phrases like "done", "finished", "completed", "push", "commit", "create a PR", "review", or when you've made substantive file changes.
+description: Commit, push, and optionally create a PR. Use after completing a task that changes files in a project repo or when the user asks to push, commit, or create a PR. Invoke GitHub PR review policy before any review trigger. Paid Claude Code Review requires explicit wording such as "Claude Code Review", "manual @claude review", or selecting the Claude review menu option; generic "review it" is not enough.
 ---
 
 # Claude PR Review
 
-After completing work on a repo, run this workflow to commit, push, and optionally create a PR with Claude Code Review. The user chooses the workflow path.
+After completing work on a repo, run this workflow to commit, push, and optionally create a PR. Use `github-pr-review-policy` before any GitHub review trigger. The user chooses the workflow path.
 
 ## Prerequisites
 
 - `gh` CLI authenticated
-- For option 3 (Code Review): Claude GitHub App installed on the repo's org, Code Review enabled (claude.ai → Organisation → Claude Code), overage spend limit set (claude.ai → Organisation → Usage)
+- For option 3 (Code Review): `github-pr-review-policy` permits Claude review, Claude GitHub App installed on the repo's org, Code Review enabled (claude.ai → Organisation → Claude Code), overage spend limit set (claude.ai → Organisation → Usage)
 - For option 3: repo has a `CLAUDE.md` in root (required for the App to activate)
 - Optional: `REVIEW.md` in repo root for review-specific instructions
 
@@ -45,7 +45,8 @@ AskUserQuestion with:
 **Smart detection — skip the prompt if intent is already clear:**
 - User said "push it", "commit this", "push to main" → option 1
 - User said "create a PR", "open a PR" → option 2
-- User said "review", "review it", "get a review", "PR with review" → option 3
+- User said "Claude Code Review", "manual @claude review", "paid Claude review", or selected "Create PR + Claude Code Review" → option 3
+- User said generic "review", "review it", "get a review", or "PR with review" → use Codex review policy or ask; do not infer paid Claude review
 - User said "done", "finished" or similar without specifying → show the interactive menu
 
 ### Step 1 — Commit

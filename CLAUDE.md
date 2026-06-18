@@ -51,7 +51,7 @@ Perplexity first (retry once) â†’ Brave Search only if Perplexity MCP is down â†
 
 A Stop hook auto-commits the dotfiles-claude config repo after every response. For project repos, the hook does NOT auto-commit.
 
-After completing work that changes files in a project repo, invoke the `claude-pr-review` skill. Do NOT commit or push project repo changes outside the skill. If the user's intent is clear ("push it", "create a PR", "review it"), skip the prompt and proceed.
+After completing work that changes files in a project repo, invoke the `claude-pr-review` skill. Do NOT commit or push project repo changes outside the skill. If the user's intent is clear ("push it", "create a PR"), skip the prompt and proceed. For PR review routing, invoke `github-pr-review-policy`: Codex review is the default on PR creation, and Claude Code Review requires explicit manual approval.
 
 ## Local repo locations
 

@@ -1,0 +1,4 @@
+interface:
+  display_name: "GitHub PR Review Policy"
+  short_description: "Shared PR review routing and guard checks."
+  default_prompt: "Use github-pr-review-policy to choose the PR review bot and verify the review actually ran."

@@ -1,0 +1,52 @@
+{
+  "providers": {
+    "codex": {
+      "trigger": "@codex review",
+      "dedupeScope": "head",
+      "allowTriggerSuffix": true,
+      "botLoginPatterns": ["codex", "chatgpt", "openai"],
+      "checkRunPatterns": ["codex", "chatgpt", "openai"]
+    },
+    "claude": {
+      "trigger": "@claude review once",
+      "dedupeScope": "pr-once",
+      "allowTriggerSuffix": false,
+      "allowedRepos": ["Bella-Slainte/BellaAssist-MVP-2"],
+      "botLoginPatterns": ["claude", "anthropic"],
+      "checkRunPatterns": ["claude", "anthropic"]
+    }
+  },
+  "skipTextPatterns": [
+    "usage limit",
+    "spend limit",
+    "overage",
+    "credits?",
+    "quota",
+    "skipp?ed",
+    "disabled",
+    "not enabled",
+    "not configured",
+    "not installed",
+    "connect to github",
+    "no access",
+    "permission",
+    "unauthori[sz]ed",
+    "billing",
+    "could not",
+    "couldn't",
+    "failed to",
+    "error"
+  ],
+  "genericOkPatterns": [
+    "\\blgtm\\b",
+    "looks good",
+    "thumbs?\\s*up",
+    "no issues",
+    "no findings",
+    "clean review",
+    "nothing to flag",
+    "approved",
+    "all good",
+    "no problems found"
+  ]
+}
