@@ -124,9 +124,10 @@ def load_policy(path: str | None = None) -> dict[str, Any]:
 
 
 def configure_policy(policy: dict[str, Any]) -> None:
-    global POLICY, PROVIDERS, TRIGGER_TEXT, TRIGGER_RE, SKIP_RE, GENERIC_OK_RE
+    global POLICY, PROVIDERS, REPOSITORIES, TRIGGER_TEXT, TRIGGER_RE, SKIP_RE, GENERIC_OK_RE
     POLICY = policy
     PROVIDERS = POLICY["providers"]
+    REPOSITORIES = POLICY.get("repositories", {})
     TRIGGER_TEXT = {provider: cfg["trigger"] for provider, cfg in PROVIDERS.items()}
     TRIGGER_RE = {provider: trigger_re(provider) for provider in PROVIDERS}
     SKIP_RE = union_re(POLICY.get("skipTextPatterns", []))
@@ -135,6 +136,7 @@ def configure_policy(policy: dict[str, Any]) -> None:
 
 POLICY: dict[str, Any] = {}
 PROVIDERS: dict[str, dict[str, Any]] = {}
+REPOSITORIES: dict[str, dict[str, Any]] = {}
 TRIGGER_TEXT: dict[str, str] = {}
 TRIGGER_RE: dict[str, re.Pattern[str]] = {}
 SKIP_RE: re.Pattern[str]
@@ -313,6 +315,8 @@ def load_state(repo: str, pr: int) -> dict[str, Any]:
         "repo": repo,
         "pr": pr,
         "head_sha": head_sha,
+        "head_ref": pr_obj.get("head", {}).get("ref"),
+        "base_ref": pr_obj.get("base", {}).get("ref"),
         "state": pr_obj.get("state"),
         "draft": bool(pr_obj.get("draft")),
         "comments": run_gh_paginated_array(f"/repos/{owner}/{name}/issues/{pr}/comments?per_page=100"),
@@ -322,6 +326,64 @@ def load_state(repo: str, pr: int) -> dict[str, Any]:
             f"/repos/{owner}/{name}/commits/{head_sha}/check-runs?per_page=100",
             "check_runs",
         ),
+    }
+
+
+def repo_policy(repo: str) -> dict[str, Any]:
+    return REPOSITORIES.get(repo) or REPOSITORIES.get("*") or {}
+
+
+def text_map_get(mapping: dict[str, Any], key: str | None) -> str | None:
+    if not key:
+        return None
+    for candidate, message in mapping.items():
+        if str(candidate).lower() == key.lower():
+            return str(message)
+    return None
+
+
+def base_branch_guidance(state: dict[str, Any]) -> dict[str, Any]:
+    cfg = repo_policy(state["repo"]).get("pullRequestBaseGuidance", {})
+    base = state.get("base_ref")
+    if not cfg:
+        return {"status": "not_configured", "base_ref": base, "message": None, "severity": "none"}
+
+    normal_bases = [str(branch) for branch in cfg.get("normalBases", [])]
+    informational_bases = cfg.get("informationalBases", {})
+    promotion_only_bases = cfg.get("promotionOnlyBases", {})
+
+    if base and any(base.lower() == branch.lower() for branch in normal_bases):
+        return {
+            "status": "normal",
+            "base_ref": base,
+            "severity": "none",
+            "message": cfg.get("normalMessage") or f"PR targets the normal base branch `{base}`.",
+        }
+
+    info_message = text_map_get(informational_bases, base)
+    if info_message:
+        return {
+            "status": "informational",
+            "base_ref": base,
+            "severity": "info",
+            "message": info_message,
+        }
+
+    promotion_message = text_map_get(promotion_only_bases, base)
+    if promotion_message:
+        return {
+            "status": "promotion_only",
+            "base_ref": base,
+            "severity": "warning",
+            "message": promotion_message,
+        }
+
+    return {
+        "status": "nonstandard",
+        "base_ref": base,
+        "severity": "warning",
+        "message": cfg.get("nonstandardMessage")
+        or "PR targets a nonstandard base branch. Confirm this is intentional before treating it as the normal deployment path.",
     }
 
 
@@ -466,7 +528,13 @@ def pre_codex(state: dict[str, Any], emit_comment_body: bool, timeout_minutes: i
     if allow:
         reasons.append(f"No current-head Codex review evidence found; trigger {TRIGGER_TEXT['codex']}")
 
-    result = {"allow_trigger": allow, "bot": "codex", "reasons": reasons, **classification}
+    result = {
+        "allow_trigger": allow,
+        "bot": "codex",
+        "base_branch_guidance": base_branch_guidance(state),
+        "reasons": reasons,
+        **classification,
+    }
     if emit_comment_body and allow:
         result["comment_body"] = trigger_body("codex", state["head_sha"], "head")
     return result
@@ -513,7 +581,13 @@ def pre_claude(state: dict[str, Any], allow_retry: bool, emit_comment_body: bool
     if allow:
         reasons.append("Manual Claude first-cycle trigger is allowed only after an explicit user request")
 
-    result = {"allow_trigger": allow, "bot": "claude", "reasons": reasons, **classification}
+    result = {
+        "allow_trigger": allow,
+        "bot": "claude",
+        "base_branch_guidance": base_branch_guidance(state),
+        "reasons": reasons,
+        **classification,
+    }
     if emit_comment_body and allow:
         result["comment_body"] = trigger_body("claude", state["head_sha"], "pr-once")
     return result
@@ -568,6 +642,7 @@ def main() -> int:
                 }
                 for name, cfg in PROVIDERS.items()
             },
+            "repositories": REPOSITORIES,
         }
         print(json.dumps(result, indent=2, sort_keys=True))
         return 0
@@ -585,6 +660,9 @@ def main() -> int:
             "state": state["state"],
             "draft": state["draft"],
             "head_sha": state["head_sha"],
+            "head_ref": state.get("head_ref"),
+            "base_ref": state.get("base_ref"),
+            "base_branch_guidance": base_branch_guidance(state),
             "counts": {
                 "issue_comments": len(state["comments"]),
                 "reviews": len(state["reviews"]),
@@ -599,6 +677,7 @@ def main() -> int:
         result = {
             "allow_trigger": False,
             "bot": args.bot,
+            "base_branch_guidance": base_branch_guidance(state),
             "reasons": ["classification only"],
             "trigger_comment_id": args.trigger_comment_id,
             "trigger_comment_seen": trigger_seen,

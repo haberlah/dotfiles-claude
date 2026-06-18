@@ -25,6 +25,7 @@
       "checkRunPatterns": ["claude", "anthropic"]
     }
   },
+  "repositories": {},
   "skipTextPatterns": [
     "usage limit",
     "spend limit",

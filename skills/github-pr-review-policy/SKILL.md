@@ -17,6 +17,7 @@ Use this skill to route GitHub PR review requests across Codex, Claude Code, and
 - Use the configured exact Claude trigger, normally `@claude review once`. Do not use bare `@claude review` unless the local policy explicitly changes that.
 - Treat Codex and Claude bot reviews as advisory unless GitHub itself enforces them through required status checks or required reviews.
 - Do not place literal bot mentions in PR templates or routine PR bodies. Use checklist wording such as "AI review requested" so templates do not accidentally trigger a bot.
+- Apply configured PR base-branch guidance as an education/checkpoint signal, not a merge gate unless GitHub policy says otherwise. Normal PRs usually target the configured trunk branch. Informational branches such as demo or sandbox deploy branches may be valid but differ from the normal deployment plan. Promotion environments such as testing, staging, and production should usually be handled by deployment promotion, not GitHub PR base branches.
 
 ## Workflow
 
@@ -35,15 +36,16 @@ Use this skill to route GitHub PR review requests across Codex, Claude Code, and
    ```
 
 4. Trigger only when the guard returns `allow_trigger: true`.
-5. After a bot posts a generic approval, "looks good", "no issues", thumbs-up, or similar no-findings response, classify the run before accepting it:
+5. Inspect `base_branch_guidance` in the guard output. Report `informational`, `promotion_only`, or `nonstandard` guidance to the user before summarizing review/deploy readiness. Do not silently treat an alternate base branch as the normal deployment path.
+6. After a bot posts a generic approval, "looks good", "no issues", thumbs-up, or similar no-findings response, classify the run before accepting it:
 
    ```bash
    python3 <skill>/scripts/pr_review_guard.py classify --bot codex --repo OWNER/REPO --pr PR_NUMBER
    python3 <skill>/scripts/pr_review_guard.py classify --bot claude --repo OWNER/REPO --pr PR_NUMBER
    ```
 
-6. If classification is `generic_unverified`, `skipped`, `silent_timeout`, `infra_or_review_error`, `trigger_comment_not_found`, `head_changed_after_trigger`, or `no_review_evidence`, do not report the review as clean. Report the exact classification and fall back according to policy.
-7. After fixes are pushed, use the configured rerun provider. In the default policy, that means Codex.
+7. If classification is `generic_unverified`, `skipped`, `silent_timeout`, `infra_or_review_error`, `trigger_comment_not_found`, `head_changed_after_trigger`, or `no_review_evidence`, do not report the review as clean. Report the exact classification and fall back according to policy.
+8. After fixes are pushed, use the configured rerun provider. In the default policy, that means Codex.
 
 ## Configuration
 
@@ -63,6 +65,7 @@ Read `references/review-policy.example.json` before configuring a team policy. C
 When summarizing PR review state, include:
 
 - PR number, repo, branch, and head SHA.
+- PR base branch guidance, especially when the base is informational, promotion-only, or nonstandard.
 - Which bot was triggered, exact trigger comment, and whether it was automatic or manual.
 - Guard classification, not just the bot's prose.
 - Inline findings grouped as fixed, waived, still blocking, or pre-existing.
