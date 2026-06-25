@@ -99,5 +99,6 @@
   "theme": "dark",
   "showTurnDuration": true,
   "teammateMode": "tmux",
-  "skipAutoPermissionPrompt": true
+  "skipAutoPermissionPrompt": true,
+  "tui": "fullscreen"
 }
