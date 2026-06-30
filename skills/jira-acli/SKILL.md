@@ -74,6 +74,15 @@ Board URL: `bellaslainte.atlassian.net/jira/software/projects/KAN/boards/2`.
 8. **Flag name differs between create and edit:** `create` uses `--label` (singular); `edit` uses `--labels` (plural). CSV bulk column is `label`.
 9. **`transition --status` must match an existing workflow status name exactly** (KAN: Idea / In Progress / Done). Batch many keys in one `--key "a,b,c"` call, or target by `--jql`.
 11. **`assign` (like create-bulk's siblings) prompts for confirmation — pass `-y`/`--yes`** or it cancels with "assign cancelled". Same for `transition`, `edit`, `delete`.
+12. **`assign --assignee <accountId>` SILENTLY UNASSIGNS** (reports "N work items were assigned" but the field ends up empty — confirmed 2026-06-30, only the authenticated user's own id stuck). **Always assign by EMAIL** (`--assignee user@domain`), which works reliably. Verify with a `search --fields assignee` afterwards, never trust the success line.
+
+## Custom "People" field in a team-managed project (Collaborators)
+acli can't create a project-scoped field for team-managed projects. Create it in the UI, then populate via REST:
+1. Open any work item → Details panel → **"Edit fields"** (slider icon, top-right of Details) → **Create field** → Field type **People** (leave "Restrict to a single user" OFF for multi-user) → name it → Create.
+2. Get its id: `GET /rest/api/3/field` → filter by name. (KAN's "Collaborators" = **`customfield_10041`**, schema custom `...customfieldtypes:people`, type array.)
+3. Populate / overwrite per issue via REST PUT (from an authenticated browser tab, return a Promise — no top-level await):
+   `PUT /rest/api/3/issue/{KEY}` body `{"fields":{"customfield_10041":[{"accountId":"..."},...]}}` → 204. Same endpoint sets **reporter** (`{"fields":{"reporter":{"accountId":"..."}}}`) and any other field.
+- KAN ownership model applied 2026-06-30: assignee = first-listed human in the sheet Owner field; Collaborators = the follow-up humans; AI agents ("Claude Code"/"Codex") and "Group" excluded; C4 (only "Group") left unassigned; C1 kept Georgia's self-assignment rather than the rule's (Isaac first, not invited).
 10. CSV: write with `csv.QUOTE_ALL` (summaries contain commas, `>`, parentheses). Keep descriptions **single-line** (join with ` | `) — avoids any newline-in-CSV-field parser risk.
 
 ## Recipe: build a Kanban board from a Google Sheet
