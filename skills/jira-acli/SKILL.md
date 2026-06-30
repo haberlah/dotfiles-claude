@@ -90,6 +90,14 @@ David's standing preference (2026-06-30): **no email notifications anywhere**, m
 - **Per-user (David's own):** `/jira/settings/personal/notifications` → master toggle **"Send me emails for work item activity"** OFF disables ALL his email (incl. mentions); the Default-notifications Email column greys out. Can't change other users' personal toggles.
 - The "Email notifications off until <date>" banner is a separate FREE-PLAN daily rate-limit, not a setting.
 - Slack alternative: project notifications page has a "Connect to Slack" (OAuth, needs the user) to route events to a channel instead of email.
+
+## Jira → Slack updates (Tier-1 @mention automation, in progress 2026-06-30)
+Goal: post to **#bella-jira** (Slack channel `C0BE6S9BD60`) on new-ticket + status-change, @-mentioning the owner. Slack app that posts via MCP = "Claude" (U0AMKLGELHZ).
+- **Built:** team-managed Automation flow "Slack #bella-jira: new tickets + status changes (@owner)" (rule id 019f1768-3dc8-7193-853b-8b57429de645) — trigger = "Multiple work item events" (Work item created + Work item transitioned); action = Slack "Send message". Saved DISABLED.
+- **BLOCKER (user's OAuth):** the Automation "Send message" action needs its OWN connection ("Atlassian Automation → Slack Actions"), SEPARATE from the native "Jira Cloud" Slack app. Shows a "Connect" button = OAuth grant, user-only. Until connected, can't set channel/message.
+- **After connect:** set Channel = #bella-jira; message payload uses smart-value inline conditionals for the @mention, e.g. `{{#if(equals(issue.assignee.accountId,"<acctId>"))}}<@SlackID>{{/}}` chained for all 9 (mapping in [[reference_bella_slainte_team]]). Current status shows via `{{issue.status.name}}` (works for both created + transitioned). Then enable + test via a transition.
+- Free plan caps automation ~100 runs/month, single-project. Fallback = native Slack app subscription (text-only, unlimited, no @ping).
+- Smart-value @mention via inline `{{#if}}` chain avoids building a 9-branch UI switch.
 10. CSV: write with `csv.QUOTE_ALL` (summaries contain commas, `>`, parentheses). Keep descriptions **single-line** (join with ` | `) — avoids any newline-in-CSV-field parser risk.
 
 ## Recipe: build a Kanban board from a Google Sheet
