@@ -43,8 +43,16 @@ Per David's standing preference, hand him the command (pbcopy it) and let him ru
 | Delete | `acli jira workitem delete --key "KAN-1,KAN-2" --yes` |
 
 ## What acli CANNOT do (use the Jira web UI or REST API instead)
-- **Create, rename, reorder, or delete board columns / workflow statuses.** There is no `workflow`/`status` command and no raw-API passthrough. `board create` only builds a board from a filter; `project update` doesn't touch statuses. Board columns in team-managed projects = statuses, configured under **Board → Configure columns** in the UI (adding a column creates a status). Do column/status changes in the UI (or drive it with Claude-in-Chrome/Playwright), THEN use `acli transition` to move cards into the new columns.
-- KAN's full status set (5 columns, even when some are empty): **Idea, To Do, In Progress, In Review, Done.**
+- **Create, rename, reorder, or delete board columns / workflow statuses.** There is no `workflow`/`status` command and no raw-API passthrough. `board create` only builds a board from a filter; `project update` doesn't touch statuses. Board columns in team-managed projects = statuses. Do column/status changes in the web UI (or drive Claude-in-Chrome), THEN use `acli transition --status "<col name>"` to move cards in — once a column exists, its name IS a valid transition target.
+- **Approving a user's access/join request** (e.g. "X needs to join Jira") — not in `acli admin` (which only activate/deactivate/delete managed accounts). It's an access-control grant: leave it to the user via the email approve link or admin.atlassian.com. (Also a hard safety rule: don't grant access on someone's behalf.)
+- Verify a user got access (read-only): `home.atlassian.com/o/<orgId>/people/search?query=<name>` — they show in "People you work with" with a recent-activity timestamp once active.
+
+### Driving the team-managed board UI in Chrome (column ops) — what actually works
+Board URL: `bellaslainte.atlassian.net/jira/software/projects/KAN/boards/2`.
+- **Rename a column:** double-click the column header title → it becomes an input → `cmd+a`, type new name, `Return`. (Single-click on an *empty* new column also opens rename; single-click on an established column instead surfaces a "…" kebab.)
+- **Create a column:** click the **+** at the far right of the column row. The floating name input has flaky focus — the reliable sequence is: click **+**, then **explicitly click the input field**, type the name, then click the ✓ check (or `Return` + click empty board area). Verify with a screenshot; if no column appears, retry (first attempt often no-ops). New columns always append at the far right.
+- **Reorder a column:** the "…" kebab has **Move column left / Move column right** (clean, click-based — preferred). Drag-the-header also works (`left_click_drag` header→target x) BUT throws a transient "Something went wrong" error and blanks the board — it actually persisted; just `navigate` to reload and the new order is there. The kebab is hard to summon on freshly-created empty columns, so drag-then-reload was what worked for new columns.
+- KAN's status set after the 2026-06-30 build: **Idea, Pilot, Beta, RC1, In Progress, In Review, Done** (Pilot/Beta/RC1 are phase columns split out of the old "To Do"). Phase is also mirrored on every card as a `phase-pilot`/`phase-beta`/`phase-rc1` label so it survives once a card moves into In Progress.
 
 ## GOTCHAS (all learned the hard way — trust these)
 1. **`search` defaults to only 30 results.** Always pass `--limit 100` (or `--paginate`) or you silently miss rows. Output is a JSON array; fields are nested under each item's `.fields` (`.fields.summary`, `.fields.status.name`, `.fields.labels`).
