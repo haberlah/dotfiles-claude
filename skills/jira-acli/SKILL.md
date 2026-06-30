@@ -82,7 +82,14 @@ acli can't create a project-scoped field for team-managed projects. Create it in
 2. Get its id: `GET /rest/api/3/field` → filter by name. (KAN's "Collaborators" = **`customfield_10041`**, schema custom `...customfieldtypes:people`, type array.)
 3. Populate / overwrite per issue via REST PUT (from an authenticated browser tab, return a Promise — no top-level await):
    `PUT /rest/api/3/issue/{KEY}` body `{"fields":{"customfield_10041":[{"accountId":"..."},...]}}` → 204. Same endpoint sets **reporter** (`{"fields":{"reporter":{"accountId":"..."}}}`) and any other field.
-- KAN ownership model applied 2026-06-30: assignee = first-listed human in the sheet Owner field; Collaborators = the follow-up humans; AI agents ("Claude Code"/"Codex") and "Group" excluded; C4 (only "Group") left unassigned; C1 kept Georgia's self-assignment rather than the rule's (Isaac first, not invited).
+- KAN ownership model applied 2026-06-30: assignee = first-listed human in the sheet Owner field; Collaborators = the follow-up humans; AI agents ("Claude Code"/"Codex") and "Group" excluded; C4 (only "Group") left unassigned; C1 kept Georgia's self-assignment rather than the rule's (Isaac first, not invited). David↔Michael split rule: GCP/Terraform/sec-ops/infra + MFA → Michael; features/big product/architecture decisions → David (D1, D6, G6 went to David; D3/D7/D9/G1 stayed Michael).
+
+## Notifications (email off)
+David's standing preference (2026-06-30): **no email notifications anywhere**, moving the team to Slack instead.
+- **Project-wide (all users):** Project settings → Notifications → Settings = 13 per-event rows (each → All Watchers/Current Assignee/Reporter). DELETE all of them (per-row "…" → Delete → confirm) to stop the project sending any email. Reversible via "Add notification". acli has no reach here.
+- **Per-user (David's own):** `/jira/settings/personal/notifications` → master toggle **"Send me emails for work item activity"** OFF disables ALL his email (incl. mentions); the Default-notifications Email column greys out. Can't change other users' personal toggles.
+- The "Email notifications off until <date>" banner is a separate FREE-PLAN daily rate-limit, not a setting.
+- Slack alternative: project notifications page has a "Connect to Slack" (OAuth, needs the user) to route events to a channel instead of email.
 10. CSV: write with `csv.QUOTE_ALL` (summaries contain commas, `>`, parentheses). Keep descriptions **single-line** (join with ` | `) — avoids any newline-in-CSV-field parser risk.
 
 ## Recipe: build a Kanban board from a Google Sheet
