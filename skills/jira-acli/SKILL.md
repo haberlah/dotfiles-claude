@@ -39,7 +39,12 @@ Per David's standing preference, hand him the command (pbcopy it) and let him ru
 | Bulk create | `acli jira workitem create-bulk --from-csv issues.csv --yes` |
 | Edit | `acli jira workitem edit --key "KAN-1,KAN-2" --summary "..." --description "..." --labels "x" --yes` |
 | Transition (status/column) | `acli jira workitem transition --key "KAN-1,KAN-2" --status "In Progress" --yes` (or `--jql "..."`) |
+| Assign | `acli jira workitem assign --key "KAN-1,KAN-2" --assignee "@me" --yes` (`@me`, an email, or `default`) |
 | Delete | `acli jira workitem delete --key "KAN-1,KAN-2" --yes` |
+
+## What acli CANNOT do (use the Jira web UI or REST API instead)
+- **Create, rename, reorder, or delete board columns / workflow statuses.** There is no `workflow`/`status` command and no raw-API passthrough. `board create` only builds a board from a filter; `project update` doesn't touch statuses. Board columns in team-managed projects = statuses, configured under **Board → Configure columns** in the UI (adding a column creates a status). Do column/status changes in the UI (or drive it with Claude-in-Chrome/Playwright), THEN use `acli transition` to move cards into the new columns.
+- KAN's full status set (5 columns, even when some are empty): **Idea, To Do, In Progress, In Review, Done.**
 
 ## GOTCHAS (all learned the hard way — trust these)
 1. **`search` defaults to only 30 results.** Always pass `--limit 100` (or `--paginate`) or you silently miss rows. Output is a JSON array; fields are nested under each item's `.fields` (`.fields.summary`, `.fields.status.name`, `.fields.labels`).
@@ -51,6 +56,7 @@ Per David's standing preference, hand him the command (pbcopy it) and let him ru
 7. **`edit --labels` APPENDS labels, it does not replace.** To change a label set, `--remove-labels "old"` then (or in another call) `--labels "new"`. Re-running `--labels` to "fix" a label just stacks them.
 8. **Flag name differs between create and edit:** `create` uses `--label` (singular); `edit` uses `--labels` (plural). CSV bulk column is `label`.
 9. **`transition --status` must match an existing workflow status name exactly** (KAN: Idea / In Progress / Done). Batch many keys in one `--key "a,b,c"` call, or target by `--jql`.
+11. **`assign` (like create-bulk's siblings) prompts for confirmation — pass `-y`/`--yes`** or it cancels with "assign cancelled". Same for `transition`, `edit`, `delete`.
 10. CSV: write with `csv.QUOTE_ALL` (summaries contain commas, `>`, parentheses). Keep descriptions **single-line** (join with ` | `) — avoids any newline-in-CSV-field parser risk.
 
 ## Recipe: build a Kanban board from a Google Sheet
