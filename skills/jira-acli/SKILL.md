@@ -40,7 +40,16 @@ Per David's standing preference, hand him the command (pbcopy it) and let him ru
 | Edit | `acli jira workitem edit --key "KAN-1,KAN-2" --summary "..." --description "..." --labels "x" --yes` |
 | Transition (status/column) | `acli jira workitem transition --key "KAN-1,KAN-2" --status "In Progress" --yes` (or `--jql "..."`) |
 | Assign | `acli jira workitem assign --key "KAN-1,KAN-2" --assignee "@me" --yes` (`@me`, an email, or `default`) |
+| Un-assign | `acli jira workitem assign --key "KAN-1" --remove-assignee --yes` (`default` assigns the project default, it does NOT clear) |
+| List watchers | `acli jira workitem list-watchers --key KAN-1 --json` |
 | Delete | `acli jira workitem delete --key "KAN-1,KAN-2" --yes` |
+
+### Watchers & assignee mechanics (learned 2026-06-30)
+- **The issue CREATOR auto-watches every issue they create.** Bulk-created cards therefore all have the creator (david) as a watcher already — to make someone a watcher-but-not-owner, you often just need to NOT assign them (or un-assign), and they keep watching.
+- **Assigning a user auto-adds them as a watcher.** Un-assigning does NOT remove the watch.
+- **`acli` cannot ADD a watcher** — `workitem watcher` only has `list` (deprecated) + `remove`. To add another user as watcher, POST the Jira REST API with their accountId as the *raw JSON-string body*:
+  `POST /rest/api/3/issue/{KEY}/watchers`, `Content-Type: application/json`, body = `JSON.stringify(accountId)` → 204. Run it from an authenticated browser tab on the Jira origin (Claude-in-Chrome `javascript_tool`, return a Promise — top-level `await` is NOT available in that REPL). Get the accountId from `list-watchers --json` or `view --fields assignee --json` after assigning them once.
+- Owner-vs-watcher rule used for Team Bella: a person is **assignee only if their name is FIRST** in the sheet's Owner field (split on `+`/`/`, strip `(offline)`-style annotations); if mentioned but not first → **watcher**. Only applied to users who actually have Jira access. Don't silently override a teammate's own self-assignment — flag it instead.
 
 ## What acli CANNOT do (use the Jira web UI or REST API instead)
 - **Create, rename, reorder, or delete board columns / workflow statuses.** There is no `workflow`/`status` command and no raw-API passthrough. `board create` only builds a board from a filter; `project update` doesn't touch statuses. Board columns in team-managed projects = statuses. Do column/status changes in the web UI (or drive Claude-in-Chrome), THEN use `acli transition --status "<col name>"` to move cards in — once a column exists, its name IS a valid transition target.
