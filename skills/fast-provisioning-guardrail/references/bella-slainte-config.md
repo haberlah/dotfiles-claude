@@ -11,9 +11,20 @@
 
 ## 2. Naming Conventions
 
-- **Org/project-prefix convention:** `bellamed-` for application projects (e.g. `bellamed-glassbox`, `bellamed-mountwinter-isms-2`).
-- **Application naming pattern:** `bellamed-<app-name>`.
-- **Folder structure keys:** `fldr-common/fldr-security` (security folder, confirmed in source). Production/non-production/sandbox folder keys not specified in source material — confirm before use.
+- **Org/project-prefix convention:** `bellamed-` for application projects (e.g. `bellamed-glassbox`, `bellamed-mountwinter-isms-2`, `bellamed-bella-assist-dev`).
+- **Application naming pattern:** `bellamed-<app-name>`, or `bellamed-bella-assist-<env>` for the main app's per-environment projects.
+- **Folder structure keys (verified directly against `fast/stages/2-project-factory/datasets/classic/projects/*.yaml`, 2026-07-01):**
+  - Root product folder: `bellamed-product1`
+  - Dev: `bellamed-product1/dev` (project `bella-assist-dev`)
+  - Stage: `bellamed-product1/test` — note the environment is called "stage" but the folder key is `test`, not `stage`; don't assume they match
+  - Vibe: `bellamed-product1/vibe` (project `bella-assist-vibe`)
+  - Prod: `bellamed-product1/prod` (project `bella-assist-prod`)
+  - Incident-remediated projects (glassbox, mountwinter-isms-2) are parented directly at the `bellamed-product1` root, not under an env sub-folder — they sit outside the dev/test/vibe/prod pipeline.
+  - CI/CD project (`bella-assist-cicd`): `fldr-common/fldr-ops`
+  - Security/sec-core projects: `fldr-common/fldr-security`
+- **Two different per-environment SA strategies coexist:** the main `bella-assist-*` app splits environments across separate *projects*, each with a single `app-sa` (e.g. "Bella Assist app runtime (prod)"). Mountwinter-isms-2 instead keeps all environments in *one* project with env-suffixed SAs (`mountwinter-app-dev/stage/prod`, per PR #56's description) alongside `mountwinter-cicd-sa`. Don't assume one pattern applies to a new app without checking which style it's following.
+- **Per-project Terraform state buckets:** each `bella-assist-*` env project declares its own `buckets: tf-state<env>bucket: {}` (e.g. `tf-stateprodbucket`) — this is the app's own Terraform state storage, declared in the foundations repo's project YAML but used by `bella-assist-terraform`, not by FAST itself.
+- **`defaults.yaml` location:** `fast/stages/0-org-setup/datasets/classic/defaults.yaml`, not under `2-project-factory` — don't look for it in the project-factory dataset folder.
 
 ## 3. Security / Secrets Isolation
 
