@@ -86,6 +86,9 @@ Project IDs are immutable and globally unique. If the desired/live project ID is
 
 Prefer Pattern A whenever the live project's ID and configuration are reusable. Reach for Pattern B only when they genuinely are not, and never as a shortcut to avoid the more careful import workflow.
 
+> [!NOTE]
+> **Don't assume one environment-isolation convention applies org-wide.** It's common for different apps within the same foundations repo to isolate environments differently — some split each environment into its own project with a single runtime SA, others keep one project with environment-suffixed SAs. Check how the specific app being worked on actually does it (read its existing project-factory YAML) rather than copying whatever pattern happened to be used for a different app.
+
 For a full worked example of both patterns plus the secrets-apply-order and two-automation-identities gotchas playing out across a real PR sequence, read `references/illustrative-walkthrough.md`.
 
 ## When to Stop and Ask a Human
