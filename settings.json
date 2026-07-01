@@ -11,7 +11,6 @@
     "deny": [],
     "defaultMode": "auto"
   },
-  "model": "opus",
   "hooks": {
     "SessionStart": [
       {
@@ -95,10 +94,10 @@
   },
   "alwaysThinkingEnabled": true,
   "effortLevel": "xhigh",
+  "tui": "fullscreen",
   "skipWorkflowUsageWarning": true,
   "theme": "dark",
   "showTurnDuration": true,
   "teammateMode": "tmux",
-  "skipAutoPermissionPrompt": true,
-  "tui": "fullscreen"
+  "skipAutoPermissionPrompt": true
 }
