@@ -8,6 +8,8 @@ Fill in every field below before using the `fast-provisioning-guardrail` skill w
 - **FAST version / layout in use:** (e.g. Cloud Foundation Fabric FAST, specific tag/commit if pinned)
 - **Stage directory layout confirmed?** (yes/no — note any deviation from the standard `fast/stages/0-org-setup`, `1-resman`, `2-project-factory`, `2-security`, `2-networking`, etc. numbering)
 - **PR review requirements:** (required reviewers, required checks, branch protection notes)
+- **Real project ID derivation rule:** live project IDs are usually `<projects.defaults.prefix><logical-name>` from `defaults.yaml` (e.g. prefix `acme` + logical name `prod-iac-core-0` → `acme-prod-iac-core-0`). Record the prefix here rather than a point-in-time list of resolved names, so real names can always be derived from the YAML instead of going stale: `___`
+- **Search path reminder:** when checking whether something is already declared in Terraform, search `2-project-factory` (app/foundation projects), `2-security` (sec-core projects and secrets — NOT project-factory), and `2-networking` (VPCs/subnets/firewall) — plus the app's own Terraform repo. Concluding something is "undeclared" after checking only one of these is a common false positive.
 
 ## 2. Naming Conventions
 
@@ -42,7 +44,8 @@ Fill in every field below before using the `fast-provisioning-guardrail` skill w
 
 ## 6. Core Automation Resources (Do-Not-Touch List)
 
-- **Org-setup stage core projects/SAs** that require human confirmation before any change (equivalents of `iac-0`, `log-0`, `billing-0`): list actual names here.
+- **Org-setup stage core projects/SAs** that require human confirmation before any change: list this client's actual project names and automation SA naming pattern here — do not assume any specific naming convention (e.g. `iac-0`/`log-0`/`billing-0`) without confirming against this client's actual `0-org-setup` output: `___`
+- **Org-level IAM audit (do this before trusting the boundary is enforced at all):** confirm no human group or individual user holds `roles/owner`, `roles/resourcemanager.organizationAdmin`, `roles/resourcemanager.projectCreator`, `roles/resourcemanager.projectDeleter`, or `roles/orgpolicy.policyAdmin` directly at the organization level (`gcloud organizations get-iam-policy <org-id>`). If any human principal holds these, the entire "everything goes through Terraform+PR" guarantee is only a convention, not an enforced control — flag this to the client regardless of how clean their Terraform looks. Result: `___`
 
 ## 7. App-Repo Boundary
 
@@ -56,3 +59,9 @@ Fill in every field below before using the `fast-provisioning-guardrail` skill w
 - **Does this client have a real brownfield-import or incident-remediation history?** (yes/no)
 - If yes, link the **internal-only** write-up here (e.g. `references/<client>-config.md`), including real PR numbers/dates. **Do not paste real incident details into this template file or into any file shared outside the client engagement** — keep that content in the client-specific internal file only.
 - If no such history exists yet, note "none yet — using the generic illustrative walkthrough in `references/illustrative-walkthrough.md`."
+
+## 9. Known Open Items (Live, Unresolved — Internal Reference Only)
+
+Distinct from section 8: this tracks compliance/drift gaps that are confirmed but NOT yet resolved, so a future agent working on this client's infrastructure doesn't act on stale assumptions (e.g. assuming a remediated project is receiving production traffic when DNS/cutover hasn't happened yet, or missing that an unmanaged resource still exists and needs careful handling rather than casual deletion).
+
+- List each open item as: what's confirmed live, how it was verified (exact command/evidence, not assumption), and what decision is still pending. **Do not paste this section's content into the shareable Aviato package or any other client's config** — internal-only, like section 8.

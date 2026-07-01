@@ -108,6 +108,13 @@ Prefer Pattern A whenever the live project's ID and configuration are reusable. 
 
 For a full worked example of both patterns plus the secrets-apply-order and two-automation-identities gotchas playing out across a real PR sequence, read `references/illustrative-walkthrough.md`.
 
+## Before Trusting That This Boundary Is Actually Enforced
+
+> [!CRITICAL]
+> **A clean Terraform history does not mean the boundary is enforced.** Everything in this skill assumes writes actually have to go through Terraform+PR — but that is only true if no human group or individual user holds `roles/owner`, `roles/resourcemanager.organizationAdmin`, `roles/resourcemanager.projectCreator`, `roles/resourcemanager.projectDeleter`, or `roles/orgpolicy.policyAdmin` directly at the organization level. Check this early on any new engagement (`gcloud organizations get-iam-policy <org-id>`) — if a human principal holds any of these, standing bypass capability exists regardless of how clean the Terraform looks so far, and every rule in this skill is enforced only by convention, not by control. Flag this to a human immediately; it is a higher-leverage finding than any individual drifted resource.
+
+For a checklist of specific technical gotchas (WIF ordering and project-number requirements, why Certificate Manager can't be centralised like Secrets/KMS, cross-project load balancer prerequisites, PSA vs PSC, brownfield import hazards, and PR-review red flags), read `references/common-pitfalls.md`.
+
 ## When to Stop and Ask a Human
 
 Per the FAST operations guide, stop and get explicit human confirmation before proceeding in these situations — do not resolve them independently, and do not treat "the plan looked mostly fine" as sufficient:
