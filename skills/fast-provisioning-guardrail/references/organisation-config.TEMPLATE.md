@@ -47,7 +47,9 @@ Fill in every field below before using the `fast-provisioning-guardrail` skill w
 ## 7. App-Repo Boundary
 
 - **App-owned Terraform repo(s):** list per app, e.g. `<app-name>-terraform`
-- **Confirmed convention:** foundation-owned resources are referenced from app repos (string/data-source), never redeclared as resources there.
+- **What the app repo is actually allowed to create directly** (not just reference) — check the app repo's own modules/resources rather than assuming; common app-owned resource types include CI/CD delivery pipelines (Cloud Build triggers, Cloud Deploy, Artifact Registry), runtime services (Cloud Run, load balancers, Cloud Armor), and app-specific encryption keys/buckets declared with a cross-project `project = <sec-core-project-id>` attribute once FAST has granted the automation identity the matching role. List the confirmed resource types here: `___`
+- **What must stay in `<FOUNDATIONS_REPO>` regardless:** the project itself, org/project-level IAM grants for automation identities, shared/reserved secret containers, the security project itself, networking backbone, org policies, API enablement.
+- **Confirmed:** cross-project resources declared from the app repo only exist because `<FOUNDATIONS_REPO>` granted the specific IAM role first — never because the app repo's Terraform identity happened to have broad enough access to just work.
 
 ## 8. Historical Remediation Examples (Internal Reference Only)
 
