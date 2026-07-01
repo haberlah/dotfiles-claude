@@ -51,6 +51,14 @@
 
 - Org-setup stage core projects/SAs requiring human confirmation before any change: `iac-0`, `log-0`, `billing-0` projects and their service accounts (0-org-setup stage).
 
+## 6a. Networking (Hub-and-Spoke, Verified 2026-07-01)
+
+- **Topology:** hub-and-spoke shared VPC, declared at `fast/stages/2-networking/datasets/hub-and-spokes-peerings/vpcs/`. Hub project `net-core-0` hosts `bellamed-assist-vpc-hub-0`. Spoke projects: `net-dev-0`, `net-test-0` (the "stage" env's networking spoke — again note env name ≠ folder/project key), `net-vibe-0`, `net-prod-0`, each hosting its own `bellamed-assist-vpc-<env>-0` peered back to the hub.
+- **Mountwinter reused the existing prod spoke, not a new VPC.** `mountwinter-default` (10.30.1.0/24, `australia-southeast2`) is declared as a subnet file at `fast/stages/2-networking/datasets/hub-and-spokes-peerings/vpcs/prod/subnets/mountwinter-default.yaml`, alongside the pre-existing `prod-default` (10.30.0.0/24) subnet — PR #55. This is the correct pattern verified directly in both the live GCP console and the repo: a new app joining an existing environment gets a new subnet in that environment's spoke, not a dedicated VPC.
+- **PSA (Private Service Access) range for prod:** `10.72.224.0/24`, declared in the prod spoke's `.config.yaml` (`psa_configs.ranges`), with `peered_domains: ["test."]`. This range is what allows Cloud SQL private-IP instances in prod-adjacent projects to be provisioned — a prerequisite for any new Cloud SQL instance, analogous to the secrets apply-order gotcha: the PSA range must exist before a private-IP Cloud SQL instance can be created against it.
+- **Reserved proxy-only subnet for the regional external LB:** `prod-proxy`, `10.72.240.0/24`, role `ACTIVE`, purpose `REGIONAL_MANAGED_PROXY` — required for the external Application Load Balancer fronting Cloud Run services in prod.
+- **DNS zones per environment** live at `fast/stages/2-networking/datasets/hub-and-spokes-peerings/dns/zones/{net-core-0,net-dev-0,net-prod-0,net-test-0,net-vibe-0}/` — per-spoke private zones, maintained by Aviato (Brett).
+
 ## 7. App-Repo Boundary
 
 - **App-owned Terraform repo(s):** `bella-assist-terraform` (covers bella-assist and Mountwinter). Ships its own reusable modules under `modules/`: `artifact-registry`, `cloud-deploy`, `cloudbuild-trigger`, `cloud-run-v2`, `cloudsql-instance`, `cloud-armor`, `net-lb-app-ext`, `net-address`, `certificate-manager`, `monitoring-alerts`.
