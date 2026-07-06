@@ -21,6 +21,10 @@ Specific technical gotchas found across real FAST deployments. Each one has temp
 
 - **Confirm PSA vs. PSC before adding Cloud SQL private connectivity — they are mutually exclusive per VPC and declared in different files.** Standalone-VPC apps typically use Private Service Access (a reserved range declared in the VPC's own config file). Shared-VPC hub-and-spoke apps typically use Private Service Connect (a per-instance service-attachment declared in that VPC's addresses file). Determine which pattern the target VPC already uses before editing either — adding a PSC address to a PSA-based VPC (or vice versa) is a common mismatch.
 
+## Secret Manager
+
+- **`gcloud secrets list` without a location silently omits regional secrets — do not conclude "container missing" from the global list alone.** Regional secrets (`location:` set in the secrets-factory YAML) live under `projects/P/locations/L/secrets/S` and are only visible via the location-specific API (`gcloud secrets list --location=L` on a current CLI, or the regional REST endpoint `https://secretmanager.<location>.rep.googleapis.com/v1/...` on older CLIs). A "declared 9, live shows 5" comparison built on the global list can manufacture phantom drift and trigger unnecessary remediation work — always check both surfaces before declaring declared-vs-applied drift for secrets.
+
 ## Brownfield Imports
 
 - **Two specific things to check on every brownfield import plan before applying:** (1) the target resource plans as an in-place update, not a REPLACE (common causes: attributes like `auto_create_network`/`deletion_policy` drifting from the live resource's actual state) — never apply a replace on a live brownfield resource without explicit human sign-off; (2) the `for_each` key in the import's `to =` address actually matches the module's naming convention — cross-check against `terraform state list` of an already-imported sibling resource if unsure.
