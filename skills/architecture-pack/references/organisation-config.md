@@ -34,7 +34,7 @@ npm run check:architecture-pack
 npm run check:architecture-pack -- --source /path/to/bella-assist-architecture-pack
 ```
 
-The check compares **`content/` and `generated/` only**. Pack-only `qa/` evidence files may legitimately diverge.
+The check compares **`content/` and `generated/` only**. Pack-only `qa/` evidence files may legitimately diverge — **`qa/` is pack-primary** (plans, LiteLLM evidence, validation log). Do not assume the V1 embed mirrors `qa/`.
 
 ## Skill install
 

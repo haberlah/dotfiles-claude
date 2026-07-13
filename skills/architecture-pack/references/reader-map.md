@@ -13,7 +13,8 @@ Paths are relative to the architecture-pack root (or V1 `docs/architecture-pack/
 | Gateway / redaction / PII? | `content/20-architecture/ai-gateway-redaction-pipeline.md` | LiteLLM `qa/` evidence, gateway tests |
 | CRM / provisioning facade? | `content/20-architecture/crm-integration.md` (when present) | V1 ADRs under `docs/adr/`, `generated/endpoint-catalogue.md` (`/api/internal/crm`) |
 | Why does a module exist? | `content/25-design-intent/design-intent-overview.md` | `runtime-module-intent.md`, dormant index |
-| Privacy / auth / isolation? | `content/20-architecture/auth-access-data-isolation.md` | `content/30-security/rls-activation.md`, `generated/route-access-matrix.md`, `generated/access-register.md` |
+| Privacy / auth / isolation? | `content/20-architecture/auth-access-data-isolation.md` | `content/30-security/rls-activation.md`, `content/30-security/audit-retention-and-immutability.md`, `content/30-security/append-only-immutability.md`, `generated/route-access-matrix.md`, `generated/access-register.md` |
+| Audit / append-only governance tables? | `content/30-security/audit-retention-and-immutability.md` | `content/30-security/append-only-immutability.md`, `generated/retention-register.md`, `generated/ops-control-inventory.md` |
 | Ops / deploy / runbooks? | `content/40-operations/` | `generated/ops-control-inventory.md`, `generated/env-var-inventory.md` |
 | What do release checks prove? | `content/60-risk-review/qa-coverage.md` | `generated/qa-release-gate-inventory.md`, `generated/test-inventory.md` |
 | E2E tiers / promote rules? | V1 `docs/testing/e2e-operations.md` | V1 `docs/E2E-LOCAL.md` |
