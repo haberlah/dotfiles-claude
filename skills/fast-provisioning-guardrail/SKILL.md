@@ -73,6 +73,18 @@ Rule of thumb for classifying a new write:
 > [!NOTE]
 > **Default to reusing existing networking, not creating new networking.** Many FAST deployments use a hub-and-spoke shared-VPC topology (one hub VPC, one spoke VPC per environment, peered to the hub). When a new app needs network connectivity, check for this topology first — the default move is adding a subnet to the relevant environment's existing spoke, not creating a dedicated VPC for the new app. A new VPC means re-establishing peering, NAT, and PSA ranges from scratch, and drifts away from however this client's existing apps are networked. This is still a FAST YAML change either way — the point is which resource to create, not whether to go through FAST.
 
+## Replacing a Workload-Mutating Automation Identity
+
+Project-level allow roles are not sufficient proof that a new deployment or automation identity can perform its job. An effective IAM Deny policy attached to the project, any ancestor folder, or the organization overrides those allow roles. Whenever an execution identity is introduced, split, renamed, or replaces an older CI/CD identity:
+
+1. **Inspect the full resource ancestry and every effective IAM Deny policy** before the first rollout. Read the project parent chain and list/get deny policies at the project, each ancestor folder, and the organization. Compare the required permissions with both `deniedPermissions` and `exceptionPrincipals`.
+2. **Reconcile the deny exception in the same governed foundation change** that grants the new identity its FAST-owned allow roles. Do not wait for the first deployment failure and do not add an ad-hoc exception with `gcloud` or the Console.
+3. **Inventory every workload in the deny policy's inherited scope before removing the old exception.** Remove the superseded CI/CD identity only after proving it no longer mutates any project under that project/folder/org policy—not merely the app currently being changed. A shared identity may still be the intentional direct-deploy principal for a sibling environment or product. Keep registration/build identities non-exempt only when their complete remaining design is read/register-only; do not leave or remove a broad bypass based on one app's role map alone.
+4. **Verify both sides before rollout:** the new execution identity is excepted only for the required mutation boundary, while a genuinely registration-only identity remains subject to the deny. If the old identity still has an intentional mutation path elsewhere in the inherited scope, preserve its exception and add assertions that confine its allow roles to that path. Also verify the expected project-level roles, target execution identity, runtime `actAs`, artifact access, and any schema-gate permissions.
+5. **Add regression assertions** for both the positive and negative cases. A future refactor must fail validation if the execution identity disappears from the required exception or if the registration identity regains workload-mutation bypass.
+
+Treat an allow-role/deny-policy mismatch as a design reconciliation issue, not as evidence that a broader predefined role is required. See `references/common-pitfalls.md` for the diagnostic pattern.
+
 ## Bringing an Existing (Brownfield) Resource Under FAST Management
 
 If a GCP project, service account, IAM binding, or API enablement already exists in real GCP outside Terraform state — whether from a past incident or a legitimate one-off — it MUST be brought under Terraform management. It must never be left as unmanaged drift, and it must never be "fixed" by deleting and recreating live resources. There are two valid patterns, depending on whether the live resource's identity (project ID) can genuinely be kept.
