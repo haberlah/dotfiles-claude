@@ -8,6 +8,9 @@
     "CLAUDE_AUTOCOMPACT_PCT_OVERRIDE": "90"
   },
   "permissions": {
+    "allow": [
+      "Bash(gcloud deploy rollouts approve:*)"
+    ],
     "deny": [],
     "defaultMode": "auto"
   },
